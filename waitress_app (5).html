@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Little Waitress</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #eef1f4;
+    color: #222;
+  }
+  #titlebar {
+    background: #1f2a44; color: #fff; padding: 10px 16px;
+    font-size: 18px; font-weight: bold;
+  }
+  #order-screen { display: block; }
+  #debug-msg { display:none; background:#fee; color:#900; padding:8px 14px; font-size:13px; border-bottom:1px solid #f99; }
+  header {
+    background: #2d3b5c; color: #fff; padding: 10px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header h2 { margin: 0; font-size: 20px; }
+  #new-order-btn {
+    font-size: 15px; padding: 8px 16px; border-radius: 6px; border: 1px solid #4a5a82;
+    background: #3b4a70; color: #fff; font-weight: bold;
+  }
+  #tabs { display: none; }
+  .cat-header {
+    width: 100%; background: #2d3b5c; color: #fff; font-size: 20px; font-weight: bold;
+    padding: 12px 16px; margin-top: 4px; border-radius: 6px;
+  }
+  #main { display: flex; flex-wrap: wrap; }
+  #menu {
+    flex: 2; min-width: 260px; display: flex; flex-wrap: wrap; gap: 10px;
+    padding: 14px; background: #eef1f4;
+  }
+  .item {
+    background: white; border: 1px solid #dde2e8; border-radius: 6px; padding: 10px;
+    text-align: center; width: 110px;
+  }
+  .item .thumb { font-size: 40px; }
+  .item .name { font-weight: bold; font-size: 13px; margin-top: 6px; }
+  .item .price { color: #1e7d32; font-weight: bold; font-size: 13px; }
+  #order-panel { flex: 1; min-width: 240px; background: #fff; border-left: 1px solid #d7dce3; }
+  #order-panel h3 { margin: 0; padding: 12px 14px; font-size: 16px; color: #1f2a44; background: #f7f9fb; border-bottom: 1px solid #e5e8ee; }
+  #order-list { padding: 0 14px; min-height: 100px; }
+  .order-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 15px; }
+  .order-row .rm { color: #c92a2a; font-weight: bold; padding: 0 6px; }
+  #total { font-size: 18px; font-weight: bold; color: #1f2a44; text-align: right; padding: 10px 14px; border-top: 1px solid #e5e8ee; }
+  #finish-btn { font-size: 16px; padding: 12px; border: none; background: #1e7d32; color: white; font-weight: bold; margin: 0 14px 14px; border-radius: 6px; width: calc(100% - 28px); }
+  #finish-screen { display: none; text-align: center; padding-top: 100px; }
+  #finish-screen h1 { font-size: 30px; color: #1f2a44; }
+  #finish-screen .amt { font-size: 48px; color: #1e7d32; font-weight: bold; }
+  #finish-screen button { font-size: 20px; padding: 14px 30px; border: none; background: #4CAF50; color: white; font-weight: bold; border-radius: 8px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div id="titlebar">Little Waitress POS</div>
+<div id="debug-msg"></div>
+
+<div id="order-screen">
+  <header>
+    <h2>Order #<span id="order-num">1</span></h2>
+    <button id="new-order-btn" onclick="startOrder()">+ New Order</button>
+  </header>
+  <div id="main">
+    <div id="menu"></div>
+    <div id="order-panel">
+      <h3>Your Order</h3>
+      <div id="order-list"></div>
+      <div id="total">Total: $0.00</div>
+      <button id="finish-btn" onclick="finishOrder()">Finish Order</button>
+    </div>
+  </div>
+</div>
+
+<div id="finish-screen">
+  <h1>Order Complete</h1>
+  <div class="amt" id="final-amt">$0.00</div>
+  <br>
+  <button onclick="startOrder()">Take Next Order</button>
+</div>
+
+<script>
+window.onerror = function(msg, url, line) {
+  var d = document.getElementById('debug-msg');
+  if (d) { d.style.display = 'block'; d.innerHTML = 'Error: ' + msg + ' (line ' + line + ')'; }
+  return false;
+};
+
+var MENU = {
+  "Breakfast": [
+    {name:"Pancakes", price:4.50, emoji:"\uD83E\uDD5E"},
+    {name:"Eggs", price:3.00, emoji:"\uD83C\uDF73"},
+    {name:"Bacon", price:2.50, emoji:"\uD83E\uDD53"},
+    {name:"Waffle", price:4.00, emoji:"\uD83E\uDDC7"}
+  ],
+  "Lunch": [
+    {name:"Burger", price:6.00, emoji:"\uD83C\uDF54"},
+    {name:"Hot Dog", price:4.50, emoji:"\uD83C\uDF2D"},
+    {name:"Grilled Cheese", price:4.00, emoji:"\uD83E\uDD6A"},
+    {name:"Fries", price:2.50, emoji:"\uD83C\uDF5F"}
+  ],
+  "Dinner": [
+    {name:"Pizza", price:3.50, emoji:"\uD83C\uDF55"},
+    {name:"Spaghetti", price:6.50, emoji:"\uD83C\uDF5D"},
+    {name:"Tacos", price:5.50, emoji:"\uD83C\uDF2E"},
+    {name:"Chicken", price:4.50, emoji:"\uD83C\uDF57"}
+  ],
+  "Dessert": [
+    {name:"Ice Cream", price:3.00, emoji:"\uD83C\uDF66"},
+    {name:"Cake", price:4.00, emoji:"\uD83C\uDF70"},
+    {name:"Cookie", price:1.50, emoji:"\uD83C\uDF6A"},
+    {name:"Donut", price:2.00, emoji:"\uD83C\uDF69"}
+  ],
+  "Drinks": [
+    {name:"Juice", price:1.50, emoji:"\uD83E\uDDC3"},
+    {name:"Milkshake", price:3.50, emoji:"\uD83E\uDD64"},
+    {name:"Lemonade", price:2.00, emoji:"\uD83C\uDF4B"},
+    {name:"Milk", price:1.50, emoji:"\uD83E\uDD5B"}
+  ]
+};
+
+var currentOrder = [];
+var orderNum = 1;
+
+function startOrder() {
+  document.getElementById('finish-screen').style.display = 'none';
+  document.getElementById('order-screen').style.display = 'block';
+  document.getElementById('order-num').textContent = orderNum;
+  currentOrder = [];
+  renderOrder();
+  renderAllMenu();
+}
+
+function renderAllMenu() {
+  var menuEl = document.getElementById('menu');
+  menuEl.innerHTML = '';
+  for (var cat in MENU) {
+    var header = document.createElement('div');
+    header.className = 'cat-header';
+    header.textContent = cat;
+    menuEl.appendChild(header);
+
+    var items = MENU[cat];
+    for (var i = 0; i < items.length; i++) {
+      (function(item) {
+        var div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = '<div class="thumb">' + item.emoji + '</div>' +
+                         '<div class="name">' + item.name + '</div>' +
+                         '<div class="price">$' + item.price.toFixed(2) + '</div>';
+        div.onclick = function() { addItem(item); };
+        menuEl.appendChild(div);
+      })(items[i]);
+    }
+  }
+}
+
+function addItem(item) {
+  currentOrder.push(item);
+  renderOrder();
+}
+
+function removeItem(idx) {
+  currentOrder.splice(idx, 1);
+  renderOrder();
+}
+
+function renderOrder() {
+  var listEl = document.getElementById('order-list');
+  listEl.innerHTML = '';
+  var total = 0;
+  for (var i = 0; i < currentOrder.length; i++) {
+    (function(item, idx) {
+      total += item.price;
+      var row = document.createElement('div');
+      row.className = 'order-row';
+      row.innerHTML = '<span>' + item.name + '</span><span>$' + item.price.toFixed(2) +
+                       ' <span class="rm">X</span></span>';
+      row.querySelector('.rm').onclick = function() { removeItem(idx); };
+      listEl.appendChild(row);
+    })(currentOrder[i], i);
+  }
+  document.getElementById('total').textContent = 'Total: $' + total.toFixed(2);
+}
+
+function finishOrder() {
+  var total = 0;
+  for (var i = 0; i < currentOrder.length; i++) { total += currentOrder[i].price; }
+  document.getElementById('final-amt').textContent = '$' + total.toFixed(2);
+  document.getElementById('order-screen').style.display = 'none';
+  document.getElementById('finish-screen').style.display = 'block';
+  orderNum++;
+}
+
+startOrder();
+</script>
+</body>
+</html>

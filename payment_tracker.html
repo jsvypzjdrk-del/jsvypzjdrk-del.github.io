@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Tracker</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: Arial, sans-serif; background: #eef1f4; color: #222; }
+  #titlebar { background: #1f2a44; color: #fff; padding: 14px 20px; font-size: 20px; font-weight: bold; }
+  #titlebar a { color: #cfd8f0; text-decoration: none; font-size: 14px; float: right; margin-top: 4px; }
+  #wrap { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  #add-form {
+    background: #fff; border: 1px solid #dde2e8; border-radius: 10px; padding: 16px;
+    margin-bottom: 24px;
+  }
+  #add-form h2 { margin: 0 0 12px; font-size: 17px; color: #1f2a44; }
+  #add-form label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #444; }
+  #add-form input {
+    width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  #add-form button {
+    width: 100%; padding: 12px; font-size: 16px; font-weight: bold; border: none;
+    background: #1e7d32; color: #fff; border-radius: 6px;
+  }
+
+  .card {
+    background: #fff; border: 1px solid #dde2e8; border-radius: 10px; padding: 16px; margin-bottom: 16px;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: center; }
+  .card-top .name { font-size: 18px; font-weight: bold; color: #1f2a44; }
+  .card-top .del { color: #c92a2a; font-size: 13px; font-weight: bold; cursor: pointer; }
+
+  .bar-bg { background: #e5e8ee; border-radius: 8px; height: 16px; margin: 10px 0; overflow: hidden; }
+  .bar-fill { background: #1e7d32; height: 100%; }
+
+  .stats { display: flex; justify-content: space-between; font-size: 14px; color: #444; margin-bottom: 12px; }
+  .stats b { color: #1f2a44; }
+
+  .pay-row { display: flex; gap: 8px; }
+  .pay-row input {
+    flex: 1; padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px;
+  }
+  .pay-row button {
+    padding: 10px 16px; font-size: 15px; font-weight: bold; border: none;
+    background: #3b4a70; color: #fff; border-radius: 6px;
+  }
+
+  #empty { text-align: center; color: #888; margin-top: 40px; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div id="titlebar">💳 Payment Tracker<a href="index.html">&larr; Home</a></div>
+
+<div id="wrap">
+  <div id="add-form">
+    <h2>Add something you're paying off</h2>
+    <label for="new-name">What is it?</label>
+    <input id="new-name" type="text" placeholder="e.g. PS5">
+    <label for="new-total">Total cost ($)</label>
+    <input id="new-total" type="number" step="0.01" placeholder="900">
+    <label for="new-paid">Already paid so far ($, optional)</label>
+    <input id="new-paid" type="number" step="0.01" placeholder="0">
+    <button onclick="addItem()">Add Item</button>
+  </div>
+
+  <div id="list"></div>
+  <div id="empty">Nothing tracked yet — add something above.</div>
+</div>
+
+<script>
+var STORAGE_KEY = 'payment_tracker_items';
+
+function loadItems() {
+  var raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch (e) { return []; }
+}
+
+function saveItems(items) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function addItem() {
+  var name = document.getElementById('new-name').value.trim();
+  var total = parseFloat(document.getElementById('new-total').value);
+  var paid = parseFloat(document.getElementById('new-paid').value);
+  if (!name || isNaN(total) || total <= 0) {
+    alert('Please enter a name and a valid total cost.');
+    return;
+  }
+  if (isNaN(paid) || paid < 0) paid = 0;
+
+  var items = loadItems();
+  items.push({ id: Date.now(), name: name, total: total, paid: paid });
+  saveItems(items);
+
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-total').value = '';
+  document.getElementById('new-paid').value = '';
+
+  render();
+}
+
+function addPayment(id) {
+  var input = document.getElementById('pay-input-' + id);
+  var amt = parseFloat(input.value);
+  if (isNaN(amt) || amt <= 0) return;
+
+  var items = loadItems();
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].id === id) {
+      items[i].paid += amt;
+      break;
+    }
+  }
+  saveItems(items);
+  render();
+}
+
+function deleteItem(id) {
+  if (!confirm('Remove this item?')) return;
+  var items = loadItems();
+  var filtered = [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].id !== id) filtered.push(items[i]);
+  }
+  saveItems(filtered);
+  render();
+}
+
+function render() {
+  var items = loadItems();
+  var listEl = document.getElementById('list');
+  var emptyEl = document.getElementById('empty');
+  listEl.innerHTML = '';
+
+  if (items.length === 0) {
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  for (var i = 0; i < items.length; i++) {
+    (function(item) {
+      var remaining = item.total - item.paid;
+      if (remaining < 0) remaining = 0;
+      var pct = Math.min(100, Math.round((item.paid / item.total) * 100));
+
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML =
+        '<div class="card-top">' +
+          '<span class="name">' + item.name + '</span>' +
+          '<span class="del">Remove</span>' +
+        '</div>' +
+        '<div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%;"></div></div>' +
+        '<div class="stats">' +
+          '<span>Paid: <b>$' + item.paid.toFixed(2) + '</b></span>' +
+          '<span>Remaining: <b>$' + remaining.toFixed(2) + '</b></span>' +
+          '<span>Total: <b>$' + item.total.toFixed(2) + '</b></span>' +
+        '</div>' +
+        '<div class="pay-row">' +
+          '<input id="pay-input-' + item.id + '" type="number" step="0.01" placeholder="Add payment amount">' +
+          '<button>Add Payment</button>' +
+        '</div>';
+
+      card.querySelector('.del').onclick = function() { deleteItem(item.id); };
+      card.querySelector('.pay-row button').onclick = function() { addPayment(item.id); };
+
+      listEl.appendChild(card);
+    })(items[i]);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
