@@ -8,8 +8,8 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0ede6; min-height: 100vh; padding: 16px 16px 32px; }
-h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; color: #111; letter-spacing: 0.02em; }
+body { font-family: Georgia, 'Times New Roman', serif; background: #0d1b2e; min-height: 100vh; padding: 16px 16px 32px; }
+h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; color: #c7ccd6; letter-spacing: 0.1em; }
 .subtitle { font-size: 12px; color: #888; text-align: center; margin-bottom: 14px; }
 .eink-frame { background: #f0ede6; border: 3px solid #777; border-radius: 14px; padding: 32px 16px 20px; min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
 .eink-brand { position: absolute; top: 7px; left: 12px; font-size: 9px; color: #bbb; letter-spacing: 0.12em; }
@@ -32,7 +32,7 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .eink-time-words { font-size: clamp(14px,4vw,19px); font-weight: 600; color: #333; font-family: Georgia, serif; }
 .nav-under { display: flex; gap: 8px; margin: 8px 0 12px; }
 .nav-under .nav-btn { flex: 1; padding: 26px; border-radius: 14px; border: 1px solid #bbb; background: #e8e5de; color: #111; font-size: 38px; font-weight: 700; cursor: pointer; text-align: center; }
-.spell-next-btn { width: 100%; padding: 18px; border-radius: 14px; border: none; background: #111; color: #f0ede6; font-size: 18px; font-weight: 700; cursor: pointer; margin: 8px 0 4px; }
+.spell-next-btn { width: 100%; padding: 18px; border-radius: 14px; border: none; background: #c7ccd6; color: #0d1b2e; font-size: 18px; font-weight: 700; cursor: pointer; margin: 8px 0 4px; }
 .mastery-banner { background: #c8dba8; border: 1px solid #a0c070; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
 .mastery-banner .mb-text { font-size: 14px; font-weight: 600; color: #2a5010; }
 .mastery-banner .mb-sub { font-size: 12px; color: #3b6d11; }
@@ -41,15 +41,15 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .sec { font-size: 11px; font-weight: 600; color: #777; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 9px; }
 .kid-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .kid-chip { font-size: 14px; padding: 6px 13px; border-radius: 20px; border: 1px solid #bbb; background: #dedad3; color: #333; cursor: pointer; }
-.kid-chip.active { background: #111; color: #f0ede6; border-color: #111; }
+.kid-chip.active { background: #c7ccd6; color: #0d1b2e; border-color: #c7ccd6; }
 .kid-chip.add { font-size: 20px; padding: 3px 10px; color: #888; }
 .kid-age { font-size: 11px; color: #888; margin-left: 3px; }
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .mode-btn { font-size: 12px; font-weight: 500; padding: 9px 4px; border-radius: 10px; border: 1px solid #bbb; background: #dedad3; color: #444; cursor: pointer; text-align: center; }
-.mode-btn.active { background: #111; color: #f0ede6; border-color: #111; }
+.mode-btn.active { background: #c7ccd6; color: #0d1b2e; border-color: #c7ccd6; }
 .disp-row { display: flex; gap: 7px; flex-wrap: wrap; }
 .disp-btn { font-size: 11px; padding: 5px 10px; border-radius: 8px; border: 1px solid #bbb; background: #dedad3; color: #555; cursor: pointer; }
-.disp-btn.active { background: #111; color: #f0ede6; border-color: #111; }
+.disp-btn.active { background: #c7ccd6; color: #0d1b2e; border-color: #c7ccd6; }
 .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-bottom: 8px; }
 .stat { background: #dedad3; border-radius: 10px; padding: 9px 4px; text-align: center; }
 .stat .snum { font-size: 20px; font-weight: 700; color: #111; }
@@ -60,7 +60,7 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .milestone-note { font-size: 11px; color: #888; margin-top: 5px; font-style: italic; }
 .word-list { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow-y: auto; }
 .word-row { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 10px; border: 1px solid #ccc; background: #dedad3; cursor: pointer; }
-.word-row.active { border-color: #111; background: #f0ede6; }
+.word-row.active { border-color: #c7ccd6; background: #f0ede6; }
 .word-row.graduated { opacity: 0.38; }
 .word-row .wtext { flex: 1; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; color: #111; }
 .wactions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
@@ -70,11 +70,11 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .add-row { display: flex; gap: 7px; margin-top: 9px; }
 .add-row input, .add-row textarea { flex: 1; font-size: 14px; padding: 8px 10px; border-radius: 10px; border: 1px solid #bbb; background: #f0ede6; color: #111; font-family: inherit; }
 .add-row textarea { resize: none; height: 60px; }
-.add-row button { font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: none; background: #111; color: #f0ede6; cursor: pointer; align-self: flex-end; }
+.add-row button { font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: none; background: #c7ccd6; color: #0d1b2e; cursor: pointer; align-self: flex-end; }
 .thumb-row { display: flex; gap: 8px; margin-bottom: 6px; }
 .thumb-btn { flex: 1; padding: 11px; border-radius: 12px; border: 1px solid #bbb; background: #dedad3; font-size: 22px; cursor: pointer; text-align: center; }
 .speak-btn { width: 100%; padding: 9px; border-radius: 12px; border: 1px solid #bbb; background: #dedad3; color: #555; font-size: 12px; cursor: pointer; }
-.speak-btn.playing { background: #111; color: #f0ede6; border-color: #111; }
+.speak-btn.playing { background: #c7ccd6; color: #0d1b2e; border-color: #c7ccd6; }
 .test-all-btn { width: 100%; padding: 8px; border-radius: 10px; border: 1px solid #bbb; background: #dedad3; color: #777; font-size: 11px; cursor: pointer; margin-top: 7px; }
 .test-all-btn.on { background: #333; color: #f0ede6; border-color: #333; }
 .clock-info { font-size: 11px; color: #777; margin-top: 7px; }
@@ -87,66 +87,69 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .modal-age-row label { font-size: 13px; color: #777; }
 .modal-btns { display: flex; gap: 8px; }
 .modal-btns button { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #bbb; }
-.modal-btns .confirm { background: #111; color: #f0ede6; border-color: #111; }
+.modal-btns .confirm { background: #c7ccd6; color: #0d1b2e; border-color: #c7ccd6; }
 .modal-btns .cancel { background: #dedad3; color: #333; }
 .no-kid { font-size: 14px; color: #888; padding: 6px 0; }
 </style>
 </head>
 <body>
-<a href="index.html" style="display:block; text-align:center; font-size:12px; color:#888; text-decoration:none; margin-bottom:8px;">&larr; Home</a>
-<h1>LearnScreen</h1>
+<a href="index.html" style="display:block; text-align:center; font-size:12px; color:#7891ac; text-decoration:none; margin-bottom:8px;">&larr; Home</a>
+<div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+  <svg width="24" height="24" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="#c7ccd6" stroke-width="1.4"/><path d="M20 46 C20 36 24 30 32 30 C40 30 44 36 44 46" stroke="#c7ccd6" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M22 32 L16 22 L25 27 Z" fill="#c7ccd6"/><path d="M42 32 L48 22 L39 27 Z" fill="#c7ccd6"/></svg>
+  <h1 style="margin:0;">LearnScreen</h1>
+</div>
 <p class="subtitle">Parent control app</p>
 
 <div id="loading" style="text-align:center; color:#888; margin-top:60px; font-size:15px;">Loading...</div>
 
 <div id="profile-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 style="color:#111;">Who's this?</h2>
+  <h2 style="color:#c7ccd6;">Who's this?</h2>
   <div id="profile-list" style="display:flex; flex-wrap:wrap; justify-content:center; margin-top:16px;"></div>
-  <div style="margin-top:30px;"><span onclick="showAdminLogin()" style="color:#555; cursor:pointer; text-decoration:underline; font-size:13px;">Admin</span></div>
+  <div style="margin-top:30px;"><span onclick="showAdminLogin()" style="color:#7891ac; cursor:pointer; text-decoration:underline; font-size:13px;">Admin</span></div>
 </div>
 
 <div id="new-profile-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 style="color:#111;">Create Parent Profile</h2>
+  <h2 style="color:#c7ccd6;">Create Parent Profile</h2>
   <input id="new-profile-name" type="text" placeholder="Your name" style="font-size:16px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
   <input id="new-pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----" style="font-size:24px; letter-spacing:8px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
   <div id="new-profile-error" style="color:#c92a2a; font-size:13px; min-height:18px;"></div>
-  <button onclick="createParentProfile()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#111; color:#f0ede6; border-radius:8px; cursor:pointer; margin-top:8px;">Create Profile</button>
-  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#555; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
+  <button onclick="createParentProfile()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#c7ccd6; color:#0d1b2e; border-radius:8px; cursor:pointer; margin-top:8px;">Create Profile</button>
+  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#7891ac; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
 </div>
 
 <div id="pin-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 id="pin-heading" style="color:#111;">Enter PIN</h2>
+  <h2 id="pin-heading" style="color:#c7ccd6;">Enter PIN</h2>
   <input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----" style="font-size:24px; letter-spacing:8px; text-align:center; width:180px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:12px auto; display:block; background:#e8e5de;">
   <div id="pin-error" style="color:#c92a2a; font-size:13px; min-height:18px;"></div>
-  <button onclick="submitPin()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#111; color:#f0ede6; border-radius:8px; cursor:pointer; margin-top:6px;">Unlock</button>
-  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#555; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
+  <button onclick="submitPin()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#c7ccd6; color:#0d1b2e; border-radius:8px; cursor:pointer; margin-top:6px;">Unlock</button>
+  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#7891ac; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
 </div>
 
 <div id="admin-login-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 id="admin-login-heading" style="color:#111;">Admin Login</h2>
+  <h2 id="admin-login-heading" style="color:#c7ccd6;">Admin Login</h2>
   <div id="admin-security-block" style="display:none;">
-    <p id="admin-security-question" style="color:#555; font-size:14px;"></p>
+    <p id="admin-security-question" style="color:#7891ac; font-size:14px;"></p>
     <input id="admin-security-input" type="text" placeholder="Answer" style="font-size:16px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
   </div>
   <input id="admin-pw-input" type="password" placeholder="Admin password" style="font-size:16px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
   <div id="admin-login-error" style="color:#c92a2a; font-size:13px; min-height:18px;"></div>
-  <button onclick="submitAdminLogin()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#111; color:#f0ede6; border-radius:8px; cursor:pointer; margin-top:6px;">Log In</button>
-  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#555; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
+  <button onclick="submitAdminLogin()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#c7ccd6; color:#0d1b2e; border-radius:8px; cursor:pointer; margin-top:6px;">Log In</button>
+  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#7891ac; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
 </div>
 
 <div id="admin-panel-screen" style="display:none;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-    <h2 style="color:#111; margin:0;">Admin Panel</h2>
-    <span onclick="backToProfiles()" style="color:#555; cursor:pointer; text-decoration:underline; font-size:13px;">Log Out</span>
+    <h2 style="color:#c7ccd6; margin:0;">Admin Panel</h2>
+    <span onclick="backToProfiles()" style="color:#7891ac; cursor:pointer; text-decoration:underline; font-size:13px;">Log Out</span>
   </div>
   <div id="admin-list"></div>
 </div>
 
 <div id="app-content" style="display:none;">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-  <span id="parent-name-label" style="font-weight:700; color:#111; font-size:14px;"></span>
+  <span id="parent-name-label" style="font-weight:700; color:#c7ccd6; font-size:14px;"></span>
   <div>
-    <span onclick="logOut()" style="color:#555; cursor:pointer; text-decoration:underline; font-size:12px; margin-right:12px;">Log Out</span>
+    <span onclick="logOut()" style="color:#7891ac; cursor:pointer; text-decoration:underline; font-size:12px; margin-right:12px;">Log Out</span>
     <span onclick="deleteParentAccount()" style="color:#c92a2a; cursor:pointer; text-decoration:underline; font-size:12px;">Delete Account</span>
   </div>
 </div>

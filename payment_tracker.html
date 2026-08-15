@@ -9,31 +9,33 @@
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { font-family: Arial, sans-serif; background: #eef1f4; color: #222; }
-  #titlebar { background: #1f2a44; color: #fff; padding: 14px 20px; font-size: 20px; font-weight: bold; }
-  #titlebar a { color: #cfd8f0; text-decoration: none; font-size: 14px; float: right; margin-top: 4px; }
+  body { font-family: Arial, sans-serif; background: #0d1b2e; color: #c7ccd6; }
+  #titlebar { background: #c7ccd6; color: #0d1b2e; padding: 14px 20px; font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+  #titlebar .logo-mark { flex-shrink: 0; }
+  #titlebar .brand-text { flex: 1; }
+  #titlebar a { color: #0d1b2e; text-decoration: none; font-size: 14px; }
   #wrap { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
 
   /* Profile picker */
   #profile-screen { text-align: center; padding-top: 60px; }
-  #profile-screen h2 { color: #1f2a44; }
+  #profile-screen h2 { color: #c7ccd6; }
   #profile-list { display: flex; flex-wrap: wrap; justify-content: center; }
   .profile-btn {
     display: inline-block; width: 160px; margin: 12px; padding: 24px 10px;
-    background: #fff; border: 1px solid #dde2e8; border-radius: 12px; cursor: pointer;
+    background: #fff; border: 1px solid #2a3d54; border-radius: 12px; cursor: pointer;
   }
   .profile-btn .icon { font-size: 40px; }
-  .profile-btn .name { font-weight: bold; font-size: 16px; margin-top: 8px; color: #1f2a44; word-break: break-word; }
+  .profile-btn .name { font-weight: bold; font-size: 16px; margin-top: 8px; color: #0d1b2e; word-break: break-word; }
   .new-profile-btn {
     display: inline-block; width: 160px; margin: 12px; padding: 24px 10px;
-    background: #f4f6f9; border: 2px dashed #b7c0cf; border-radius: 12px; cursor: pointer;
+    background: #16273d; border: 2px dashed #2a3d54; border-radius: 12px; cursor: pointer;
   }
   .new-profile-btn .icon { font-size: 40px; color: #888; }
   .new-profile-btn .name { font-weight: bold; font-size: 16px; margin-top: 8px; color: #667; }
 
   /* New profile form */
   #new-profile-screen { text-align: center; padding-top: 60px; display: none; }
-  #new-profile-screen h2 { color: #1f2a44; }
+  #new-profile-screen h2 { color: #c7ccd6; }
   #new-profile-screen input {
     font-size: 18px; text-align: center; width: 220px;
     padding: 10px; border: 2px solid #ccc; border-radius: 8px; margin: 8px 0; display: block; margin-left: auto; margin-right: auto;
@@ -47,7 +49,7 @@
 
   /* PIN screen */
   #pin-screen { text-align: center; padding-top: 60px; display: none; }
-  #pin-screen h2 { color: #1f2a44; }
+  #pin-screen h2 { color: #c7ccd6; }
   #pin-input {
     font-size: 28px; letter-spacing: 10px; text-align: center; width: 180px;
     padding: 12px; border: 2px solid #ccc; border-radius: 8px; margin: 16px 0;
@@ -60,20 +62,20 @@
     background: #1e7d32; color: #fff; border-radius: 6px; cursor: pointer;
   }
   #pin-error { color: #c92a2a; font-size: 14px; min-height: 20px; }
-  .link { color: #3b4a70; cursor: pointer; text-decoration: underline; background:none; border:none; }
+  .link { color: #7891ac; cursor: pointer; text-decoration: underline; background:none; border:none; }
 
   /* Tracker screen */
   #tracker-screen { display: none; }
   #tracker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  #tracker-header h2 { color: #1f2a44; margin: 0; }
-  #switch-btn { font-size: 13px; color: #3b4a70; background:none; border:none; cursor:pointer; text-decoration: underline; margin-right: 14px; }
+  #tracker-header h2 { color: #c7ccd6; margin: 0; }
+  #switch-btn { font-size: 13px; color: #7891ac; background:none; border:none; cursor:pointer; text-decoration: underline; margin-right: 14px; }
   #delete-account-btn { font-size: 13px; color: #c92a2a; background:none; border:none; cursor:pointer; text-decoration: underline; }
 
   #add-form {
-    background: #fff; border: 1px solid #dde2e8; border-radius: 10px; padding: 16px;
+    background: #fff; border: 1px solid #2a3d54; border-radius: 10px; padding: 16px;
     margin-bottom: 24px;
   }
-  #add-form h3 { margin: 0 0 12px; font-size: 16px; color: #1f2a44; }
+  #add-form h3 { margin: 0 0 12px; font-size: 16px; color: #0d1b2e; }
   #add-form label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #444; }
   #add-form input {
     width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px;
@@ -85,17 +87,17 @@
   }
 
   .card {
-    background: #fff; border: 1px solid #dde2e8; border-radius: 10px; padding: 16px; margin-bottom: 16px;
+    background: #fff; border: 1px solid #2a3d54; border-radius: 10px; padding: 16px; margin-bottom: 16px;
   }
   .card-top { display: flex; justify-content: space-between; align-items: center; }
-  .card-top .name { font-size: 18px; font-weight: bold; color: #1f2a44; }
+  .card-top .name { font-size: 18px; font-weight: bold; color: #0d1b2e; }
   .card-top .del { color: #c92a2a; font-size: 13px; font-weight: bold; cursor: pointer; }
 
-  .bar-bg { background: #e5e8ee; border-radius: 8px; height: 16px; margin: 10px 0; overflow: hidden; }
+  .bar-bg { background: #2a3d54; border-radius: 8px; height: 16px; margin: 10px 0; overflow: hidden; }
   .bar-fill { background: #1e7d32; height: 100%; }
 
   .stats { display: flex; justify-content: space-between; font-size: 14px; color: #444; margin-bottom: 12px; flex-wrap: wrap; gap: 6px; }
-  .stats b { color: #1f2a44; }
+  .stats b { color: #0d1b2e; }
 
   .pay-row { display: flex; gap: 8px; }
   .pay-row input {
@@ -103,7 +105,7 @@
   }
   .pay-row button {
     padding: 10px 16px; font-size: 15px; font-weight: bold; border: none;
-    background: #3b4a70; color: #fff; border-radius: 6px; cursor: pointer;
+    background: #7891ac; color: #fff; border-radius: 6px; cursor: pointer;
   }
 
   #empty { text-align: center; color: #888; margin-top: 40px; font-size: 15px; }
@@ -112,7 +114,11 @@
 </head>
 <body>
 
-<div id="titlebar">💳 Payment Tracker<a href="index.html">&larr; Home</a></div>
+<div id="titlebar">
+  <span class="logo-mark"><svg width="26" height="26" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="#0d1b2e" stroke-width="1.4"/><path d="M20 46 C20 36 24 30 32 30 C40 30 44 36 44 46" stroke="#0d1b2e" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M22 32 L16 22 L25 27 Z" fill="#0d1b2e"/><path d="M42 32 L48 22 L39 27 Z" fill="#0d1b2e"/></svg></span>
+  <span class="brand-text">Payment Tracker</span>
+  <a href="index.html">&larr; Home</a>
+</div>
 
 <div id="wrap">
 
@@ -132,13 +138,13 @@
     </div>
     <input id="admin-pw-input" type="password" placeholder="Admin password" style="font-size:18px; text-align:center; width:220px; padding:10px; border:2px solid #ccc; border-radius:8px; margin:8px auto; display:block;">
     <div id="admin-login-error" style="color:#c92a2a; font-size:14px; min-height:20px;"></div>
-    <button class="primary" onclick="submitAdminLogin()" style="padding:12px 30px; font-size:16px; font-weight:bold; border:none; background:#1f2a44; color:#fff; border-radius:6px; cursor:pointer; margin-top:10px;">Log In</button>
+    <button class="primary" onclick="submitAdminLogin()" style="padding:12px 30px; font-size:16px; font-weight:bold; border:none; background:#c7ccd6; color:#fff; border-radius:6px; cursor:pointer; margin-top:10px;">Log In</button>
     <button class="link" onclick="backToProfiles()">&larr; Back</button>
   </div>
 
   <div id="admin-panel-screen" style="display:none;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h2 style="color:#1f2a44; margin:0;">Admin Panel</h2>
+      <h2 style="color:#c7ccd6; margin:0;">Admin Panel</h2>
       <button class="link" onclick="backToProfiles()" style="background:none;border:none;">Log Out</button>
     </div>
     <div id="admin-list"></div>
