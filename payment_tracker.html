@@ -121,6 +121,27 @@
   <div id="profile-screen">
     <h2>Who's this?</h2>
     <div id="profile-list"></div>
+    <div style="margin-top:30px;"><span class="link" onclick="showAdminLogin()">Admin</span></div>
+  </div>
+
+  <div id="admin-login-screen" style="text-align:center; padding-top:60px; display:none;">
+    <h2 id="admin-login-heading">Admin Login</h2>
+    <div id="admin-security-block" style="display:none;">
+      <p id="admin-security-question" style="color:#444; font-size:15px;"></p>
+      <input id="admin-security-input" type="text" placeholder="Answer" style="font-size:18px; text-align:center; width:220px; padding:10px; border:2px solid #ccc; border-radius:8px; margin:8px auto; display:block;">
+    </div>
+    <input id="admin-pw-input" type="password" placeholder="Admin password" style="font-size:18px; text-align:center; width:220px; padding:10px; border:2px solid #ccc; border-radius:8px; margin:8px auto; display:block;">
+    <div id="admin-login-error" style="color:#c92a2a; font-size:14px; min-height:20px;"></div>
+    <button class="primary" onclick="submitAdminLogin()" style="padding:12px 30px; font-size:16px; font-weight:bold; border:none; background:#1f2a44; color:#fff; border-radius:6px; cursor:pointer; margin-top:10px;">Log In</button>
+    <button class="link" onclick="backToProfiles()">&larr; Back</button>
+  </div>
+
+  <div id="admin-panel-screen" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h2 style="color:#1f2a44; margin:0;">Admin Panel</h2>
+      <button class="link" onclick="backToProfiles()" style="background:none;border:none;">Log Out</button>
+    </div>
+    <div id="admin-list"></div>
   </div>
 
   <div id="new-profile-screen">
@@ -260,6 +281,8 @@ function backToProfiles() {
   document.getElementById('pin-screen').style.display = 'none';
   document.getElementById('new-profile-screen').style.display = 'none';
   document.getElementById('tracker-screen').style.display = 'none';
+  document.getElementById('admin-login-screen').style.display = 'none';
+  document.getElementById('admin-panel-screen').style.display = 'none';
   currentProfile = null;
   document.getElementById('loading').style.display = 'block';
   document.getElementById('profile-screen').style.display = 'none';
@@ -286,6 +309,114 @@ function deleteAccount() {
     backToProfiles();
   }).catch(function(err) {
     alert('Error deleting account: ' + err.message);
+  });
+}
+
+// ====== ADMIN ======
+var ADMIN_SECURITY_QUESTION = "What city were you born in?";
+var ADMIN_SECURITY_HASH = "eda0d7917034b9735712ba752d82b78221e4f6a172ebccc8031494935c6ca36c";
+
+function sha256(text) {
+  var msgBuffer = new TextEncoder().encode(text);
+  return crypto.subtle.digest('SHA-256', msgBuffer).then(function(hashBuffer) {
+    var hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+  });
+}
+
+function showAdminLogin() {
+  document.getElementById('profile-screen').style.display = 'none';
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('admin-security-input').value = '';
+  document.getElementById('admin-login-error').textContent = '';
+
+  db.collection('admin').doc('settings').get().then(function(doc) {
+    if (!doc.exists) {
+      document.getElementById('admin-login-heading').textContent = 'Set Up Admin Access';
+      document.getElementById('admin-security-question').textContent = ADMIN_SECURITY_QUESTION;
+      document.getElementById('admin-security-block').style.display = 'block';
+      document.getElementById('admin-pw-input').placeholder = 'Create admin password';
+    } else {
+      document.getElementById('admin-login-heading').textContent = 'Admin Login';
+      document.getElementById('admin-security-block').style.display = 'none';
+      document.getElementById('admin-pw-input').placeholder = 'Admin password';
+    }
+    document.getElementById('admin-login-screen').style.display = 'block';
+  });
+}
+
+function submitAdminLogin() {
+  var entered = document.getElementById('admin-pw-input').value;
+  if (!entered) {
+    document.getElementById('admin-login-error').textContent = 'Enter a password.';
+    return;
+  }
+
+  db.collection('admin').doc('settings').get().then(function(doc) {
+    if (!doc.exists) {
+      var answer = document.getElementById('admin-security-input').value.trim().toLowerCase();
+      if (!answer) {
+        document.getElementById('admin-login-error').textContent = 'Answer the security question.';
+        return;
+      }
+      sha256(answer).then(function(hash) {
+        if (hash !== ADMIN_SECURITY_HASH) {
+          document.getElementById('admin-login-error').textContent = 'Incorrect answer.';
+          return;
+        }
+        db.collection('admin').doc('settings').set({ password: entered }).then(function() {
+          enterAdminPanel();
+        });
+      });
+    } else {
+      if (entered === doc.data().password) {
+        enterAdminPanel();
+      } else {
+        document.getElementById('admin-login-error').textContent = 'Wrong password.';
+      }
+    }
+  });
+}
+
+function enterAdminPanel() {
+  document.getElementById('admin-login-screen').style.display = 'none';
+  document.getElementById('admin-panel-screen').style.display = 'block';
+  renderAdminList();
+}
+
+function renderAdminList() {
+  db.collection('profiles').get().then(function(snapshot) {
+    var listEl = document.getElementById('admin-list');
+    listEl.innerHTML = '';
+
+    if (snapshot.empty) {
+      listEl.innerHTML = '<div id="empty">No accounts exist yet.</div>';
+      return;
+    }
+
+    snapshot.forEach(function(doc) {
+      var data = doc.data();
+      var itemCount = (data.items || []).length;
+
+      var row = document.createElement('div');
+      row.className = 'card';
+      row.innerHTML =
+        '<div class="card-top">' +
+          '<span class="name">' + data.name + '</span>' +
+          '<span class="del">Delete</span>' +
+        '</div>' +
+        '<div class="stats"><span>' + itemCount + ' item(s) tracked</span></div>';
+
+      row.querySelector('.del').onclick = (function(id, name) {
+        return function() {
+          if (confirm('Delete account "' + name + '" and all its items? This cannot be undone.')) {
+            db.collection('profiles').doc(id).delete().then(renderAdminList);
+          }
+        };
+      })(doc.id, data.name);
+
+      listEl.appendChild(row);
+    });
   });
 }
 
