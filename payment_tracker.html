@@ -256,12 +256,14 @@ function createProfile() {
   }
 
   var newId = 'p_' + Date.now();
-  var newData = { name: name, pin: pin, items: [] };
-  db.collection('profiles').doc(newId).set(newData).then(function() {
-    profileData[newId] = newData;
-    currentProfile = newId;
-    document.getElementById('new-profile-screen').style.display = 'none';
-    enterTracker();
+  sha256(pin).then(function(pinHash) {
+    var newData = { name: name, pin: pinHash, items: [] };
+    db.collection('profiles').doc(newId).set(newData).then(function() {
+      profileData[newId] = newData;
+      currentProfile = newId;
+      document.getElementById('new-profile-screen').style.display = 'none';
+      enterTracker();
+    });
   });
 }
 
@@ -299,16 +301,19 @@ function deleteAccount() {
   if (!confirmed) return;
 
   var typedPin = prompt('Type your PIN one more time to confirm deletion:');
-  if (typedPin !== data.pin) {
-    alert('PIN did not match. Account not deleted.');
-    return;
-  }
+  if (typedPin === null) return;
 
-  db.collection('profiles').doc(currentProfile).delete().then(function() {
-    alert('Account deleted.');
-    backToProfiles();
-  }).catch(function(err) {
-    alert('Error deleting account: ' + err.message);
+  sha256(typedPin.trim()).then(function(hash) {
+    if (hash !== data.pin) {
+      alert('PIN did not match. Account not deleted.');
+      return;
+    }
+    db.collection('profiles').doc(currentProfile).delete().then(function() {
+      alert('Account deleted.');
+      backToProfiles();
+    }).catch(function(err) {
+      alert('Error deleting account: ' + err.message);
+    });
   });
 }
 
@@ -364,15 +369,20 @@ function submitAdminLogin() {
           document.getElementById('admin-login-error').textContent = 'Incorrect answer.';
           return;
         }
-        db.collection('admin').doc('settings').set({ password: entered }).then(function() {
-          enterAdminPanel();
+        sha256(entered).then(function(pwHash) {
+          db.collection('admin').doc('settings').set({ password: pwHash }).then(function() {
+            enterAdminPanel();
+          });
         });
       });
     } else {
-      if (entered === doc.data().password) {
-        enterAdminPanel();
-      } else {
-        document.getElementById('admin-login-error').textContent = 'Wrong password.';
+      sha256(entered).then(function(pwHash) {
+        if (pwHash === doc.data().password) {
+          enterAdminPanel();
+        } else {
+          document.getElementById('admin-login-error').textContent = 'Wrong password.';
+        }
+      });
       }
     }
   });
@@ -428,11 +438,13 @@ function submitPin() {
   }
   var data = profileData[currentProfile];
 
-  if (entered === data.pin) {
-    enterTracker();
-  } else {
-    document.getElementById('pin-error').textContent = 'Wrong PIN. Try again.';
-  }
+  sha256(entered).then(function(hash) {
+    if (hash === data.pin) {
+      enterTracker();
+    } else {
+      document.getElementById('pin-error').textContent = 'Wrong PIN. Try again.';
+    }
+  });
 }
 
 function enterTracker() {
