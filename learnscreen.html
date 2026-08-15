@@ -17,12 +17,12 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .eink-speaker span { width: 2px; height: 9px; background: #bbb; border-radius: 1px; }
 .eink-content { text-align: center; width: 100%; }
 .eink-divider { border-bottom: 2px dashed #bbb; width: 100%; margin-top: 10px; }
-.eink-word { font-size: clamp(48px,15vw,82px); font-weight: 800; color: #111; font-family: Georgia, serif; line-height: 1; }
-.eink-sentence { font-size: clamp(17px,5vw,24px); font-weight: 700; color: #111; font-family: Georgia, serif; line-height: 1.4; }
+.eink-word { font-size: clamp(48px,15vw,110px); font-weight: 800; color: #111; font-family: Georgia, serif; line-height: 1; }
+.eink-sentence { font-size: clamp(17px,5vw,32px); font-weight: 700; color: #111; font-family: Georgia, serif; line-height: 1.4; }
 .eink-spell-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.eink-spell-letter { font-size: clamp(40px,12vw,68px); font-weight: 800; color: #111; font-family: Georgia, serif; }
+.eink-spell-letter { font-size: clamp(40px,12vw,92px); font-weight: 800; color: #111; font-family: Georgia, serif; }
 .eink-spell-letter.hidden { color: #f0ede6; }
-.eink-num { font-size: clamp(56px,18vw,92px); font-weight: 800; color: #111; font-family: Georgia, serif; line-height: 1; }
+.eink-num { font-size: clamp(56px,18vw,120px); font-weight: 800; color: #111; font-family: Georgia, serif; line-height: 1; }
 .eink-dots { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
 .eink-dot { width: 20px; height: 20px; background: #111; border-radius: 50%; }
 .eink-idle { font-size: 15px; color: #999; font-family: Georgia, serif; }
@@ -31,8 +31,8 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .eink-date-str { font-size: 13px; color: #555; font-family: Georgia, serif; }
 .eink-time-words { font-size: clamp(14px,4vw,19px); font-weight: 600; color: #333; font-family: Georgia, serif; }
 .nav-under { display: flex; gap: 8px; margin: 8px 0 12px; }
-.nav-under .nav-btn { flex: 1; padding: 15px; border-radius: 12px; border: 1px solid #bbb; background: #e8e5de; color: #111; font-size: 24px; cursor: pointer; text-align: center; }
-.spell-next-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; background: #111; color: #f0ede6; font-size: 14px; font-weight: 600; cursor: pointer; margin: 8px 0 4px; }
+.nav-under .nav-btn { flex: 1; padding: 26px; border-radius: 14px; border: 1px solid #bbb; background: #e8e5de; color: #111; font-size: 38px; font-weight: 700; cursor: pointer; text-align: center; }
+.spell-next-btn { width: 100%; padding: 18px; border-radius: 14px; border: none; background: #111; color: #f0ede6; font-size: 18px; font-weight: 700; cursor: pointer; margin: 8px 0 4px; }
 .mastery-banner { background: #c8dba8; border: 1px solid #a0c070; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
 .mastery-banner .mb-text { font-size: 14px; font-weight: 600; color: #2a5010; }
 .mastery-banner .mb-sub { font-size: 12px; color: #3b6d11; }
@@ -170,47 +170,64 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 </div>
 
 <div class="panel">
-  <div class="sec">Kids</div>
-  <div class="kid-row" id="kid-row"></div>
-  <div id="no-kid" class="no-kid" style="display:none;">Tap + to add a kid.</div>
+  <div class="sec" onclick="togglePanel('kids-body','kids-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Kids <span id="kids-chev">▾</span></div>
+  <div id="kids-body">
+    <div class="kid-row" id="kid-row"></div>
+    <div id="no-kid" class="no-kid" style="display:none;">Tap + to add a kid.</div>
+  </div>
 </div>
 
 <div id="kid-content" style="display:none;">
   <div class="panel">
-    <div class="sec">Progress</div>
-    <div class="stats-row" id="stats-row"></div>
-    <div class="progress-label" id="progress-label"></div>
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-    <div class="milestone-note" id="milestone-note"></div>
+    <div class="sec" onclick="togglePanel('progress-body','progress-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Progress <span id="progress-chev">▾</span></div>
+    <div id="progress-body">
+      <div class="stats-row" id="stats-row"></div>
+      <div class="progress-label" id="progress-label"></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="milestone-note" id="milestone-note"></div>
+    </div>
   </div>
   <div class="panel">
-    <div class="sec">Mode</div>
-    <div class="mode-grid" id="mode-grid">
-      <div class="mode-btn active" data-mode="words">Words</div>
-      <div class="mode-btn" data-mode="letters">Letters</div>
-      <div class="mode-btn" data-mode="numbers">Numbers</div>
-      <div class="mode-btn" data-mode="sentences">Sentences</div>
-      <div class="mode-btn" data-mode="months">Months</div>
-      <div class="mode-btn" data-mode="days">Days of Week</div>
-      <div class="mode-btn" data-mode="clock">Clock</div>
+    <div class="sec" onclick="togglePanel('mode-body','mode-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Mode <span id="mode-chev">▾</span></div>
+    <div id="mode-body">
+      <div class="mode-grid" id="mode-grid">
+        <div class="mode-btn active" data-mode="words">Words</div>
+        <div class="mode-btn" data-mode="letters">Letters</div>
+        <div class="mode-btn" data-mode="numbers">Numbers</div>
+        <div class="mode-btn" data-mode="sentences">Sentences</div>
+        <div class="mode-btn" data-mode="months">Months</div>
+        <div class="mode-btn" data-mode="days">Days of Week</div>
+        <div class="mode-btn" data-mode="clock">Clock</div>
+      </div>
     </div>
   </div>
-  <div id="disp-panel" class="panel"><div class="sec">Display style</div><div class="disp-row" id="disp-row"></div></div>
+  <div id="disp-panel" class="panel">
+    <div class="sec" onclick="togglePanel('disp-body','disp-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Display style <span id="disp-chev">▾</span></div>
+    <div id="disp-body"><div class="disp-row" id="disp-row"></div></div>
+  </div>
   <div id="clock-panel" class="panel" style="display:none;">
-    <div class="sec">Clock style</div>
-    <div class="disp-row" id="clock-disp-row">
-      <div class="disp-btn active" data-cdisp="digital">Digital</div>
-      <div class="disp-btn" data-cdisp="analog">Analog + Digital</div>
-      <div class="disp-btn" data-cdisp="words">Time in words</div>
-      <div class="disp-btn" data-cdisp="teach">Teaching mode</div>
+    <div class="sec" onclick="togglePanel('clock-body','clock-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Clock style <span id="clock-chev">▾</span></div>
+    <div id="clock-body">
+      <div class="disp-row" id="clock-disp-row">
+        <div class="disp-btn active" data-cdisp="digital">Digital</div>
+        <div class="disp-btn" data-cdisp="analog">Analog + Digital</div>
+        <div class="disp-btn" data-cdisp="words">Time in words</div>
+        <div class="disp-btn" data-cdisp="teach">Teaching mode</div>
+      </div>
+      <div class="clock-info" id="clock-info"></div>
     </div>
-    <div class="clock-info" id="clock-info"></div>
   </div>
-  <div id="list-panel" class="panel"><div class="sec" id="list-label">List</div><div class="word-list" id="word-list"></div><div class="add-row" id="add-row"></div></div>
+  <div id="list-panel" class="panel">
+    <div class="sec" onclick="togglePanel('list-body','list-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;"><span id="list-label">List</span> <span id="list-chev">▾</span></div>
+    <div id="list-body"><div class="word-list" id="word-list"></div><div class="add-row" id="add-row"></div></div>
+  </div>
   <div id="lesson-controls" class="panel">
-    <div class="thumb-row"><div class="thumb-btn" onclick="flag('needs')">👎</div><div class="thumb-btn" onclick="flag('got')">👍</div></div>
-    <button class="speak-btn" id="speak-btn" onclick="toggleSpeak()">▶ Say it aloud</button>
-    <button class="test-all-btn" id="test-all-btn" onclick="toggleTestAll()">Test all (include graduated)</button>
+    <div class="sec" onclick="togglePanel('lesson-body','lesson-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Lesson controls <span id="lesson-chev">▾</span></div>
+    <div id="lesson-body">
+      <div class="thumb-row"><div class="thumb-btn" onclick="flag('needs')">👎</div><div class="thumb-btn" onclick="flag('got')">👍</div></div>
+      <button class="speak-btn" id="speak-btn" onclick="toggleSpeak()">▶ Say it aloud</button>
+      <button class="test-all-btn" id="test-all-btn" onclick="toggleTestAll()">Test all (include graduated)</button>
+    </div>
   </div>
 </div>
 
@@ -231,6 +248,18 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 </div><!-- /app-content -->
 
 <script>
+function togglePanel(bodyId,chevId){
+  var body=document.getElementById(bodyId);
+  var chev=document.getElementById(chevId);
+  if(body.style.display==='none'){
+    body.style.display='';
+    chev.textContent='▾';
+  }else{
+    body.style.display='none';
+    chev.textContent='▸';
+  }
+}
+
 const ALL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const ALL_DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAYS_LABEL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
