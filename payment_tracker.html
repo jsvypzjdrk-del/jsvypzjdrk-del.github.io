@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Payment Tracker</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -12,11 +14,65 @@
   #titlebar a { color: #cfd8f0; text-decoration: none; font-size: 14px; float: right; margin-top: 4px; }
   #wrap { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
 
+  /* Profile picker */
+  #profile-screen { text-align: center; padding-top: 60px; }
+  #profile-screen h2 { color: #1f2a44; }
+  #profile-list { display: flex; flex-wrap: wrap; justify-content: center; }
+  .profile-btn {
+    display: inline-block; width: 160px; margin: 12px; padding: 24px 10px;
+    background: #fff; border: 1px solid #dde2e8; border-radius: 12px; cursor: pointer;
+  }
+  .profile-btn .icon { font-size: 40px; }
+  .profile-btn .name { font-weight: bold; font-size: 16px; margin-top: 8px; color: #1f2a44; word-break: break-word; }
+  .new-profile-btn {
+    display: inline-block; width: 160px; margin: 12px; padding: 24px 10px;
+    background: #f4f6f9; border: 2px dashed #b7c0cf; border-radius: 12px; cursor: pointer;
+  }
+  .new-profile-btn .icon { font-size: 40px; color: #888; }
+  .new-profile-btn .name { font-weight: bold; font-size: 16px; margin-top: 8px; color: #667; }
+
+  /* New profile form */
+  #new-profile-screen { text-align: center; padding-top: 60px; display: none; }
+  #new-profile-screen h2 { color: #1f2a44; }
+  #new-profile-screen input {
+    font-size: 18px; text-align: center; width: 220px;
+    padding: 10px; border: 2px solid #ccc; border-radius: 8px; margin: 8px 0; display: block; margin-left: auto; margin-right: auto;
+  }
+  #new-pin-input { letter-spacing: 8px; }
+  #new-profile-error { color: #c92a2a; font-size: 14px; min-height: 20px; }
+  #new-profile-screen button.primary {
+    padding: 12px 30px; font-size: 16px; font-weight: bold; border: none;
+    background: #1e7d32; color: #fff; border-radius: 6px; cursor: pointer; margin-top: 10px;
+  }
+
+  /* PIN screen */
+  #pin-screen { text-align: center; padding-top: 60px; display: none; }
+  #pin-screen h2 { color: #1f2a44; }
+  #pin-input {
+    font-size: 28px; letter-spacing: 10px; text-align: center; width: 180px;
+    padding: 12px; border: 2px solid #ccc; border-radius: 8px; margin: 16px 0;
+  }
+  #pin-screen button, #pin-screen .link {
+    display: block; margin: 10px auto; font-size: 15px;
+  }
+  #pin-submit {
+    padding: 12px 30px; font-size: 16px; font-weight: bold; border: none;
+    background: #1e7d32; color: #fff; border-radius: 6px; cursor: pointer;
+  }
+  #pin-error { color: #c92a2a; font-size: 14px; min-height: 20px; }
+  .link { color: #3b4a70; cursor: pointer; text-decoration: underline; background:none; border:none; }
+
+  /* Tracker screen */
+  #tracker-screen { display: none; }
+  #tracker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  #tracker-header h2 { color: #1f2a44; margin: 0; }
+  #switch-btn { font-size: 13px; color: #3b4a70; background:none; border:none; cursor:pointer; text-decoration: underline; }
+
   #add-form {
     background: #fff; border: 1px solid #dde2e8; border-radius: 10px; padding: 16px;
     margin-bottom: 24px;
   }
-  #add-form h2 { margin: 0 0 12px; font-size: 17px; color: #1f2a44; }
+  #add-form h3 { margin: 0 0 12px; font-size: 16px; color: #1f2a44; }
   #add-form label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #444; }
   #add-form input {
     width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px;
@@ -24,7 +80,7 @@
   }
   #add-form button {
     width: 100%; padding: 12px; font-size: 16px; font-weight: bold; border: none;
-    background: #1e7d32; color: #fff; border-radius: 6px;
+    background: #1e7d32; color: #fff; border-radius: 6px; cursor: pointer;
   }
 
   .card {
@@ -37,7 +93,7 @@
   .bar-bg { background: #e5e8ee; border-radius: 8px; height: 16px; margin: 10px 0; overflow: hidden; }
   .bar-fill { background: #1e7d32; height: 100%; }
 
-  .stats { display: flex; justify-content: space-between; font-size: 14px; color: #444; margin-bottom: 12px; }
+  .stats { display: flex; justify-content: space-between; font-size: 14px; color: #444; margin-bottom: 12px; flex-wrap: wrap; gap: 6px; }
   .stats b { color: #1f2a44; }
 
   .pay-row { display: flex; gap: 8px; }
@@ -46,10 +102,11 @@
   }
   .pay-row button {
     padding: 10px 16px; font-size: 15px; font-weight: bold; border: none;
-    background: #3b4a70; color: #fff; border-radius: 6px;
+    background: #3b4a70; color: #fff; border-radius: 6px; cursor: pointer;
   }
 
   #empty { text-align: center; color: #888; margin-top: 40px; font-size: 15px; }
+  #loading { text-align: center; color: #888; margin-top: 60px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -57,32 +114,177 @@
 <div id="titlebar">💳 Payment Tracker<a href="index.html">&larr; Home</a></div>
 
 <div id="wrap">
-  <div id="add-form">
-    <h2>Add something you're paying off</h2>
-    <label for="new-name">What is it?</label>
-    <input id="new-name" type="text" placeholder="e.g. PS5">
-    <label for="new-total">Total cost ($)</label>
-    <input id="new-total" type="number" step="0.01" placeholder="900">
-    <label for="new-paid">Already paid so far ($, optional)</label>
-    <input id="new-paid" type="number" step="0.01" placeholder="0">
-    <button onclick="addItem()">Add Item</button>
+
+  <div id="loading">Loading...</div>
+
+  <div id="profile-screen">
+    <h2>Who's this?</h2>
+    <div id="profile-list"></div>
   </div>
 
-  <div id="list"></div>
-  <div id="empty">Nothing tracked yet — add something above.</div>
+  <div id="new-profile-screen">
+    <h2>Create your profile</h2>
+    <input id="new-profile-name" type="text" placeholder="Your name">
+    <input id="new-pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----">
+    <div id="new-profile-error"></div>
+    <button class="primary" onclick="createProfile()">Create Profile</button>
+    <button class="link" onclick="backToProfiles()">&larr; Back</button>
+  </div>
+
+  <div id="pin-screen">
+    <h2 id="pin-heading">Enter PIN</h2>
+    <div><input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----"></div>
+    <div id="pin-error"></div>
+    <button id="pin-submit" onclick="submitPin()">Unlock</button>
+    <button class="link" onclick="backToProfiles()">&larr; Back</button>
+  </div>
+
+  <div id="tracker-screen">
+    <div id="tracker-header">
+      <h2 id="tracker-title">Your Items</h2>
+      <button id="switch-btn" onclick="backToProfiles()">Switch Profile</button>
+    </div>
+
+    <div id="add-form">
+      <h3>Add something you're paying off</h3>
+      <label for="new-name">What is it?</label>
+      <input id="new-name" type="text" placeholder="e.g. PS5">
+      <label for="new-total">Total cost ($)</label>
+      <input id="new-total" type="number" step="0.01" placeholder="900">
+      <label for="new-paid">Already paid so far ($, optional)</label>
+      <input id="new-paid" type="number" step="0.01" placeholder="0">
+      <button onclick="addItem()">Add Item</button>
+    </div>
+
+    <div id="list"></div>
+    <div id="empty">Nothing tracked yet — add something above.</div>
+  </div>
+
 </div>
 
 <script>
-var STORAGE_KEY = 'payment_tracker_items';
+// ====== PASTE YOUR FIREBASE CONFIG HERE ======
+var firebaseConfig = {
+  apiKey: "AIzaSyDNOrwbMD3zcl_G-VDH1LfEe0Kv4bILLN8",
+  authDomain: "millscat-tracker.firebaseapp.com",
+  projectId: "millscat-tracker",
+  storageBucket: "millscat-tracker.firebasestorage.app",
+  messagingSenderId: "718174074085",
+  appId: "1:718174074085:web:8927f197e2fbec9239d00c"
+};
+// ==============================================
 
-function loadItems() {
-  var raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch (e) { return []; }
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+var currentProfile = null;
+var profileData = {};
+
+function loadProfiles() {
+  db.collection('profiles').get().then(function(snapshot) {
+    profileData = {};
+    var listEl = document.getElementById('profile-list');
+    listEl.innerHTML = '';
+
+    snapshot.forEach(function(doc) {
+      var data = doc.data();
+      profileData[doc.id] = data;
+
+      var btn = document.createElement('div');
+      btn.className = 'profile-btn';
+      btn.innerHTML = '<div class="icon">👤</div><div class="name">' + data.name + '</div>';
+      btn.onclick = (function(id) { return function() { selectProfile(id); }; })(doc.id);
+      listEl.appendChild(btn);
+    });
+
+    var newBtn = document.createElement('div');
+    newBtn.className = 'new-profile-btn';
+    newBtn.innerHTML = '<div class="icon">+</div><div class="name">New Profile</div>';
+    newBtn.onclick = showNewProfileForm;
+    listEl.appendChild(newBtn);
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('profile-screen').style.display = 'block';
+  }).catch(function(err) {
+    document.getElementById('loading').textContent = 'Error loading: ' + err.message;
+  });
 }
 
-function saveItems(items) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+function showNewProfileForm() {
+  document.getElementById('profile-screen').style.display = 'none';
+  document.getElementById('new-profile-name').value = '';
+  document.getElementById('new-pin-input').value = '';
+  document.getElementById('new-profile-error').textContent = '';
+  document.getElementById('new-profile-screen').style.display = 'block';
+}
+
+function createProfile() {
+  var name = document.getElementById('new-profile-name').value.trim();
+  var pin = document.getElementById('new-pin-input').value.trim();
+  if (!name) {
+    document.getElementById('new-profile-error').textContent = 'Please enter a name.';
+    return;
+  }
+  if (pin.length !== 4 || isNaN(pin)) {
+    document.getElementById('new-profile-error').textContent = 'PIN must be 4 digits.';
+    return;
+  }
+
+  var newId = 'p_' + Date.now();
+  var newData = { name: name, pin: pin, items: [] };
+  db.collection('profiles').doc(newId).set(newData).then(function() {
+    profileData[newId] = newData;
+    currentProfile = newId;
+    document.getElementById('new-profile-screen').style.display = 'none';
+    enterTracker();
+  });
+}
+
+function selectProfile(profileId) {
+  currentProfile = profileId;
+  document.getElementById('profile-screen').style.display = 'none';
+  var data = profileData[profileId];
+
+  document.getElementById('pin-heading').textContent = 'Enter PIN for ' + data.name;
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-screen').style.display = 'block';
+  document.getElementById('pin-input').focus();
+}
+
+function backToProfiles() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('new-profile-screen').style.display = 'none';
+  document.getElementById('tracker-screen').style.display = 'none';
+  document.getElementById('profile-screen').style.display = 'block';
+  currentProfile = null;
+}
+
+function submitPin() {
+  var entered = document.getElementById('pin-input').value.trim();
+  if (entered.length !== 4 || isNaN(entered)) {
+    document.getElementById('pin-error').textContent = 'Enter a 4-digit PIN.';
+    return;
+  }
+  var data = profileData[currentProfile];
+
+  if (entered === data.pin) {
+    enterTracker();
+  } else {
+    document.getElementById('pin-error').textContent = 'Wrong PIN. Try again.';
+  }
+}
+
+function enterTracker() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('tracker-screen').style.display = 'block';
+  var data = profileData[currentProfile];
+  document.getElementById('tracker-title').textContent = data.name + "'s Items";
+  render();
+}
+
+function saveItems() {
+  db.collection('profiles').doc(currentProfile).set(profileData[currentProfile]);
 }
 
 function addItem() {
@@ -95,9 +297,10 @@ function addItem() {
   }
   if (isNaN(paid) || paid < 0) paid = 0;
 
-  var items = loadItems();
-  items.push({ id: Date.now(), name: name, total: total, paid: paid });
-  saveItems(items);
+  var data = profileData[currentProfile];
+  if (!data.items) data.items = [];
+  data.items.push({ id: Date.now(), name: name, total: total, paid: paid });
+  saveItems();
 
   document.getElementById('new-name').value = '';
   document.getElementById('new-total').value = '';
@@ -111,30 +314,32 @@ function addPayment(id) {
   var amt = parseFloat(input.value);
   if (isNaN(amt) || amt <= 0) return;
 
-  var items = loadItems();
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].id === id) {
-      items[i].paid += amt;
+  var data = profileData[currentProfile];
+  for (var i = 0; i < data.items.length; i++) {
+    if (data.items[i].id === id) {
+      data.items[i].paid += amt;
       break;
     }
   }
-  saveItems(items);
+  saveItems();
   render();
 }
 
 function deleteItem(id) {
   if (!confirm('Remove this item?')) return;
-  var items = loadItems();
+  var data = profileData[currentProfile];
   var filtered = [];
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].id !== id) filtered.push(items[i]);
+  for (var i = 0; i < data.items.length; i++) {
+    if (data.items[i].id !== id) filtered.push(data.items[i]);
   }
-  saveItems(filtered);
+  data.items = filtered;
+  saveItems();
   render();
 }
 
 function render() {
-  var items = loadItems();
+  var data = profileData[currentProfile];
+  var items = data.items || [];
   var listEl = document.getElementById('list');
   var emptyEl = document.getElementById('empty');
   listEl.innerHTML = '';
@@ -177,7 +382,7 @@ function render() {
   }
 }
 
-render();
+loadProfiles();
 </script>
 </body>
 </html>
