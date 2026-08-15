@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>LearnScreen</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0ede6; min-height: 100vh; padding: 16px 16px 32px; }
+h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; color: #111; letter-spacing: 0.02em; }
+.subtitle { font-size: 12px; color: #888; text-align: center; margin-bottom: 14px; }
+.eink-frame { background: #f0ede6; border: 3px solid #777; border-radius: 14px; padding: 24px 16px 16px; min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.eink-brand { position: absolute; top: 7px; left: 12px; font-size: 9px; color: #bbb; letter-spacing: 0.12em; }
+.eink-speaker { position: absolute; top: 7px; right: 12px; display: flex; gap: 2px; }
+.eink-speaker span { width: 2px; height: 9px; background: #bbb; border-radius: 1px; }
+.eink-content { text-align: center; width: 100%; }
+.eink-divider { border-bottom: 2px dashed #bbb; width: 100%; margin-top: 10px; }
+.eink-word { font-size: clamp(48px,15vw,82px); font-weight: 800; color: #111; font-family: Georgia, serif; line-height: 1; }
+.eink-sentence { font-size: clamp(17px,5vw,24px); font-weight: 700; color: #111; font-family: Georgia, serif; line-height: 1.4; }
+.eink-spell-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.eink-spell-letter { font-size: clamp(40px,12vw,68px); font-weight: 800; color: #111; font-family: Georgia, serif; }
+.eink-spell-letter.hidden { color: #f0ede6; }
+.eink-num { font-size: clamp(56px,18vw,92px); font-weight: 800; color: #111; font-family: Georgia, serif; line-height: 1; }
+.eink-dots { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.eink-dot { width: 20px; height: 20px; background: #111; border-radius: 50%; }
+.eink-idle { font-size: 15px; color: #999; font-family: Georgia, serif; }
+.eink-clock-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; }
+.eink-digital { font-size: clamp(46px,14vw,78px); font-weight: 800; color: #111; font-family: Georgia, serif; letter-spacing: 0.04em; line-height: 1; }
+.eink-date-str { font-size: 13px; color: #555; font-family: Georgia, serif; }
+.eink-time-words { font-size: clamp(14px,4vw,19px); font-weight: 600; color: #333; font-family: Georgia, serif; }
+.nav-under { display: flex; gap: 8px; margin: 8px 0 12px; }
+.nav-under .nav-btn { flex: 1; padding: 15px; border-radius: 12px; border: 1px solid #bbb; background: #e8e5de; color: #111; font-size: 24px; cursor: pointer; text-align: center; }
+.spell-next-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; background: #111; color: #f0ede6; font-size: 14px; font-weight: 600; cursor: pointer; margin: 8px 0 4px; }
+.mastery-banner { background: #c8dba8; border: 1px solid #a0c070; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
+.mastery-banner .mb-text { font-size: 14px; font-weight: 600; color: #2a5010; }
+.mastery-banner .mb-sub { font-size: 12px; color: #3b6d11; }
+.mastery-banner button { align-self: flex-start; font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 8px; border: none; background: #3b6d11; color: #fff; cursor: pointer; }
+.panel { background: #e8e5de; border-radius: 16px; border: 1px solid #ccc; padding: 14px; margin-bottom: 10px; }
+.sec { font-size: 11px; font-weight: 600; color: #777; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 9px; }
+.kid-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.kid-chip { font-size: 14px; padding: 6px 13px; border-radius: 20px; border: 1px solid #bbb; background: #dedad3; color: #333; cursor: pointer; }
+.kid-chip.active { background: #111; color: #f0ede6; border-color: #111; }
+.kid-chip.add { font-size: 20px; padding: 3px 10px; color: #888; }
+.kid-age { font-size: 11px; color: #888; margin-left: 3px; }
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.mode-btn { font-size: 12px; font-weight: 500; padding: 9px 4px; border-radius: 10px; border: 1px solid #bbb; background: #dedad3; color: #444; cursor: pointer; text-align: center; }
+.mode-btn.active { background: #111; color: #f0ede6; border-color: #111; }
+.disp-row { display: flex; gap: 7px; flex-wrap: wrap; }
+.disp-btn { font-size: 11px; padding: 5px 10px; border-radius: 8px; border: 1px solid #bbb; background: #dedad3; color: #555; cursor: pointer; }
+.disp-btn.active { background: #111; color: #f0ede6; border-color: #111; }
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-bottom: 8px; }
+.stat { background: #dedad3; border-radius: 10px; padding: 9px 4px; text-align: center; }
+.stat .snum { font-size: 20px; font-weight: 700; color: #111; }
+.stat .slabel { font-size: 10px; color: #777; margin-top: 1px; }
+.progress-label { font-size: 11px; color: #777; margin-bottom: 4px; }
+.progress-bar { height: 6px; background: #ccc; border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: #3b6d11; border-radius: 3px; transition: width 0.3s; }
+.milestone-note { font-size: 11px; color: #888; margin-top: 5px; font-style: italic; }
+.word-list { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow-y: auto; }
+.word-row { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 10px; border: 1px solid #ccc; background: #dedad3; cursor: pointer; }
+.word-row.active { border-color: #111; background: #f0ede6; }
+.word-row.graduated { opacity: 0.38; }
+.word-row .wtext { flex: 1; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; color: #111; }
+.wactions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.ibtn { font-size: 14px; padding: 3px 5px; border-radius: 6px; border: 1px solid #ccc; background: #e8e5de; cursor: pointer; }
+.ibtn.got { background: #c8dba8; border-color: #a0c070; }
+.ibtn.needs { background: #e8c888; border-color: #c8a040; }
+.add-row { display: flex; gap: 7px; margin-top: 9px; }
+.add-row input, .add-row textarea { flex: 1; font-size: 14px; padding: 8px 10px; border-radius: 10px; border: 1px solid #bbb; background: #f0ede6; color: #111; font-family: inherit; }
+.add-row textarea { resize: none; height: 60px; }
+.add-row button { font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: none; background: #111; color: #f0ede6; cursor: pointer; align-self: flex-end; }
+.thumb-row { display: flex; gap: 8px; margin-bottom: 6px; }
+.thumb-btn { flex: 1; padding: 11px; border-radius: 12px; border: 1px solid #bbb; background: #dedad3; font-size: 22px; cursor: pointer; text-align: center; }
+.speak-btn { width: 100%; padding: 9px; border-radius: 12px; border: 1px solid #bbb; background: #dedad3; color: #555; font-size: 12px; cursor: pointer; }
+.speak-btn.playing { background: #111; color: #f0ede6; border-color: #111; }
+.test-all-btn { width: 100%; padding: 8px; border-radius: 10px; border: 1px solid #bbb; background: #dedad3; color: #777; font-size: 11px; cursor: pointer; margin-top: 7px; }
+.test-all-btn.on { background: #333; color: #f0ede6; border-color: #333; }
+.clock-info { font-size: 11px; color: #777; margin-top: 7px; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 99; }
+.modal { background: #f0ede6; border-radius: 18px; padding: 22px; width: 290px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+.modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 14px; color: #111; }
+.modal input { width: 100%; font-size: 15px; padding: 9px 11px; border-radius: 10px; border: 1px solid #bbb; background: #e8e5de; color: #111; margin-bottom: 10px; }
+.modal-age-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+.modal-age-row input { width: 80px; flex: none; margin-bottom: 0; }
+.modal-age-row label { font-size: 13px; color: #777; }
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns button { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #bbb; }
+.modal-btns .confirm { background: #111; color: #f0ede6; border-color: #111; }
+.modal-btns .cancel { background: #dedad3; color: #333; }
+.no-kid { font-size: 14px; color: #888; padding: 6px 0; }
+</style>
+</head>
+<body>
+<a href="index.html" style="display:block; text-align:center; font-size:12px; color:#888; text-decoration:none; margin-bottom:8px;">&larr; Home</a>
+<h1>LearnScreen</h1>
+<p class="subtitle">Parent control app</p>
+
+<div class="eink-frame">
+  <div class="eink-brand">LearnScreen</div>
+  <div class="eink-speaker"><span></span><span></span><span></span></div>
+  <div class="eink-content" id="eink-content"><div class="eink-idle">Waiting for content...</div></div>
+  <div class="eink-divider"></div>
+</div>
+
+<div id="nav-under" style="display:none;">
+  <div id="spell-next-outer" style="display:none;"><button class="spell-next-btn" onclick="spellNext()">Next letter →</button></div>
+  <div class="nav-under"><div class="nav-btn" onclick="nav(-1)">←</div><div class="nav-btn" onclick="nav(1)">→</div></div>
+</div>
+
+<div class="mastery-banner" id="mastery-banner" style="display:none;">
+  <div class="mb-text" id="mastery-text"></div>
+  <div class="mb-sub" id="mastery-sub"></div>
+  <button onclick="unlockNext()">Unlock next level →</button>
+</div>
+
+<div class="panel">
+  <div class="sec">Kids</div>
+  <div class="kid-row" id="kid-row"></div>
+  <div id="no-kid" class="no-kid" style="display:none;">Tap + to add a kid.</div>
+</div>
+
+<div id="kid-content" style="display:none;">
+  <div class="panel">
+    <div class="sec">Progress</div>
+    <div class="stats-row" id="stats-row"></div>
+    <div class="progress-label" id="progress-label"></div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="milestone-note" id="milestone-note"></div>
+  </div>
+  <div class="panel">
+    <div class="sec">Mode</div>
+    <div class="mode-grid" id="mode-grid">
+      <div class="mode-btn active" data-mode="words">Words</div>
+      <div class="mode-btn" data-mode="letters">Letters</div>
+      <div class="mode-btn" data-mode="numbers">Numbers</div>
+      <div class="mode-btn" data-mode="sentences">Sentences</div>
+      <div class="mode-btn" data-mode="months">Months</div>
+      <div class="mode-btn" data-mode="days">Days of Week</div>
+      <div class="mode-btn" data-mode="clock">Clock</div>
+    </div>
+  </div>
+  <div id="disp-panel" class="panel"><div class="sec">Display style</div><div class="disp-row" id="disp-row"></div></div>
+  <div id="clock-panel" class="panel" style="display:none;">
+    <div class="sec">Clock style</div>
+    <div class="disp-row" id="clock-disp-row">
+      <div class="disp-btn active" data-cdisp="digital">Digital</div>
+      <div class="disp-btn" data-cdisp="analog">Analog + Digital</div>
+      <div class="disp-btn" data-cdisp="words">Time in words</div>
+      <div class="disp-btn" data-cdisp="teach">Teaching mode</div>
+    </div>
+    <div class="clock-info" id="clock-info"></div>
+  </div>
+  <div id="list-panel" class="panel"><div class="sec" id="list-label">List</div><div class="word-list" id="word-list"></div><div class="add-row" id="add-row"></div></div>
+  <div id="lesson-controls" class="panel">
+    <div class="thumb-row"><div class="thumb-btn" onclick="flag('needs')">👎</div><div class="thumb-btn" onclick="flag('got')">👍</div></div>
+    <button class="speak-btn" id="speak-btn" onclick="toggleSpeak()">▶ Say it aloud</button>
+    <button class="test-all-btn" id="test-all-btn" onclick="toggleTestAll()">Test all (include graduated)</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal" style="display:none;">
+  <div class="modal">
+    <h3>Add kid</h3>
+    <input id="kid-name-input" placeholder="Nickname (not real name)..." maxlength="20"/>
+    <div class="modal-age-row">
+      <input id="kid-age-input" placeholder="Age" type="number" min="1" max="12"/>
+      <label>years old</label>
+    </div>
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="confirm" onclick="confirmAddKid()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ALL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const ALL_DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const DAYS_LABEL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const LETTER_BATCHES=[['A','B','C','D','E'],['F','G','H','I','J'],['K','L','M','N','O'],['P','Q','R','S','T'],['U','V','W','X','Y','Z']];
+const NUMBER_BATCHES=[['1','2','3'],['4','5','6','7','8','9','10'],['11','12','13','14','15','16','17','18','19','20'],['21','22','23','24','25','26','27','28','29','30'],['31','32','33','34','35','36','37','38','39','40'],['41','42','43','44','45','46','47','48','49','50']];
+const WORD_BATCHES=[['CAT','DOG','MOM','DAD','YES','NO','RUN','SIT','BIG','RED','SUN','HAT','CUP','BED','FUN'],['THE','AND','A','TO','IN','IS','IT','OF','THAT','WAS','FOR','ON','ARE','AS','WITH','HIS','THEY','AT','BE','THIS'],['SAID','THERE','USE','EACH','WHICH','SHE','DO','HOW','THEIR','IF','WILL','UP','OTHER','ABOUT','OUT','MANY','THEN'],['MORE','WRITE','GO','SEE','NUMBER','WAY','COULD','PEOPLE','MY','THAN','FIRST','WATER','BEEN','CALL','WHO']];
+const BATCH_NAMES={letters:LETTER_BATCHES,numbers:NUMBER_BATCHES,words:WORD_BATCHES};
+
+function getStartConfig(age){
+  age=parseInt(age)||3;
+  if(age<=3) return{lb:0,nb:0,wb:-1,days:false,months:false};
+  if(age<=4) return{lb:1,nb:0,wb:-1,days:false,months:false};
+  if(age<=5) return{lb:2,nb:1,wb:0,days:true,months:false};
+  if(age<=6) return{lb:4,nb:2,wb:1,days:true,months:true};
+  if(age<=8) return{lb:4,nb:3,wb:2,days:true,months:true};
+  return{lb:4,nb:5,wb:3,days:true,months:true};
+}
+function buildUpTo(batches,idx){let o=[];for(let i=0;i<=Math.min(idx,batches.length-1);i++)o=o.concat(batches[i]);return o.map(w=>({word:w,status:null}));}
+function newKidLists(age){
+  const c=getStartConfig(age);
+  return{
+    words:c.wb>=0?buildUpTo(WORD_BATCHES,c.wb):[],
+    letters:buildUpTo(LETTER_BATCHES,c.lb),
+    numbers:buildUpTo(NUMBER_BATCHES,c.nb),
+    sentences:[],
+    months:c.months?ALL_MONTHS.map(m=>({word:m,status:null})):[],
+    days:c.days?ALL_DAYS.map(d=>({word:d,status:null})):[],
+    letterBatch:c.lb,numberBatch:c.nb,wordBatch:c.wb
+  };
+}
+
+let state={kids:[],activeKid:null};
+let mode='words',disp='whole',clockDisp='digital',idx=0,spellIdx=0,testAll=false,speaking=false,clockTimer=null,pendingUnlock=null;
+
+var firebaseConfig = {
+  apiKey: "AIzaSyDNOrwbMD3zcl_G-VDH1LfEe0Kv4bILLN8",
+  authDomain: "millscat-tracker.firebaseapp.com",
+  projectId: "millscat-tracker",
+  storageBucket: "millscat-tracker.firebasestorage.app",
+  messagingSenderId: "718174074085",
+  appId: "1:718174074085:web:8927f197e2fbec9239d00c"
+};
+firebase.initializeApp(firebaseConfig);
+var lsdb = firebase.firestore();
+
+function loadKids(){
+  lsdb.collection('learnscreen_kids').get().then(function(snapshot){
+    state.kids=[];
+    snapshot.forEach(function(doc){
+      var d=doc.data();
+      state.kids.push({id:doc.id,name:d.nickname,age:d.age,lists:d.lists});
+    });
+    if(state.kids.length>0 && !state.activeKid) state.activeKid=state.kids[0].name;
+    renderAll();
+  });
+}
+
+function save(){
+  const kid=getKid();if(!kid)return;
+  lsdb.collection('learnscreen_kids').doc(kid.id).set({nickname:kid.name,age:kid.age,lists:kid.lists});
+}
+function getKid(){return state.kids.find(k=>k.name===state.activeKid);}
+function getList(){const k=getKid();return k?k.lists[mode]:[];}
+function getActive(){const l=getList();return testAll?l:l.filter(w=>w.status!=='got');}
+function currentItem(){return getActive()[idx];}
+
+function checkMastery(){
+  const kid=getKid();if(!kid)return;
+  if(!['letters','numbers','words'].includes(mode))return;
+  const list=kid.lists[mode];if(!list||!list.length)return;
+  const got=list.filter(w=>w.status==='got').length;
+  if(got/list.length<0.8)return;
+  const bk=mode==='letters'?'letterBatch':mode==='numbers'?'numberBatch':'wordBatch';
+  const cur=kid.lists[bk]??0;const next=cur+1;
+  if(next>=BATCH_NAMES[mode].length)return;
+  if(pendingUnlock&&pendingUnlock.mode===mode)return;
+  pendingUnlock={mode,nextBatch:next,batchKey:bk};
+  const nxt=BATCH_NAMES[mode][next];
+  document.getElementById('mastery-text').textContent='🎉 '+kid.name+' has mastered '+mode+'! Ready for the next level.';
+  document.getElementById('mastery-sub').textContent='Next up: '+nxt.slice(0,5).join(', ')+(nxt.length>5?'...':'');
+  document.getElementById('mastery-banner').style.display='block';
+}
+function unlockNext(){
+  if(!pendingUnlock)return;const kid=getKid();if(!kid)return;
+  const{mode:m,nextBatch:nb,batchKey:bk}=pendingUnlock;
+  kid.lists[m]=kid.lists[m].concat(BATCH_NAMES[m][nb].map(w=>({word:w,status:null})));
+  kid.lists[bk]=nb;pendingUnlock=null;
+  document.getElementById('mastery-banner').style.display='none';
+  save();renderAll();
+}
+
+function dispOptions(){
+  if(mode==='numbers') return[{k:'whole',l:'Whole'},{k:'count',l:'Count dots'}];
+  if(mode==='letters'||mode==='sentences'||mode==='clock') return[{k:'whole',l:'Whole'}];
+  return[{k:'whole',l:'Whole'},{k:'spell',l:'Spell it out'}];
+}
+
+const CW=['twelve','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'];
+function timeWords(h,m){const h12=h%12;if(m===0)return'It is '+CW[h12]+' o\'clock';if(m===15)return'It is quarter past '+CW[h12];if(m===30)return'It is half past '+CW[h12];if(m===45)return'It is quarter to '+CW[(h12+1)%12];if(m<30)return'It is '+m+' minutes past '+CW[h12];return'It is '+(60-m)+' minutes to '+CW[(h12+1)%12];}
+function drawClock(h,m,sz){const c=document.createElement('canvas');c.width=sz;c.height=sz;const ctx=c.getContext('2d'),cx=sz/2,cy=sz/2,r=sz/2-4;ctx.fillStyle='#f0ede6';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();for(let i=0;i<12;i++){const a=(i/12)*Math.PI*2-Math.PI/2,inn=i%3===0?r*0.75:r*0.85;ctx.strokeStyle='#333';ctx.lineWidth=i%3===0?2:1;ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*inn,cy+Math.sin(a)*inn);ctx.lineTo(cx+Math.cos(a)*(r-2),cy+Math.sin(a)*(r-2));ctx.stroke();}const ha=((h%12+m/60)/12)*Math.PI*2-Math.PI/2;ctx.strokeStyle='#111';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(ha)*r*0.5,cy+Math.sin(ha)*r*0.5);ctx.stroke();const ma=(m/60)*Math.PI*2-Math.PI/2;ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(ma)*r*0.72,cy+Math.sin(ma)*r*0.72);ctx.stroke();ctx.fillStyle='#111';ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();return c.toDataURL();}
+
+function renderClock(){
+  const now=new Date(),h=now.getHours(),m=now.getMinutes();
+  const h12=h%12||12,mm=String(m).padStart(2,'0'),ampm=h<12?'AM':'PM';
+  const ds=DAYS_LABEL[now.getDay()]+', '+ALL_MONTHS[now.getMonth()]+' '+now.getDate();
+  const el=document.getElementById('eink-content');
+  const ci=document.getElementById('clock-info');
+  const infos={digital:'Default idle screen.',analog:'Analog + digital.',words:'Written time.',teach:'All three formats.'};
+  if(ci)ci.textContent=infos[clockDisp]||'';
+  if(clockDisp==='digital'){el.innerHTML='<div class="eink-clock-wrap"><div class="eink-digital">'+h12+':'+mm+' <span style="font-size:0.44em;color:#666;">'+ampm+'</span></div><div class="eink-date-str">'+ds+'</div></div>';}
+  else if(clockDisp==='analog'){const img=drawClock(h,m,155);el.innerHTML='<div class="eink-clock-wrap"><img src="'+img+'" width="148" height="148"/><div class="eink-digital" style="font-size:clamp(30px,9vw,50px);">'+h12+':'+mm+' <span style="font-size:0.5em;color:#666;">'+ampm+'</span></div></div>';}
+  else if(clockDisp==='words'){el.innerHTML='<div class="eink-clock-wrap"><div class="eink-time-words">'+timeWords(h,m)+'</div><div class="eink-date-str" style="margin-top:7px;">'+ds+'</div></div>';}
+  else if(clockDisp==='teach'){const img=drawClock(h,m,125);el.innerHTML='<div class="eink-clock-wrap"><img src="'+img+'" width="125" height="125"/><div class="eink-digital" style="font-size:clamp(24px,7vw,40px);">'+h12+':'+mm+' '+ampm+'</div><div class="eink-time-words" style="font-size:clamp(11px,3vw,15px);">'+timeWords(h,m)+'</div></div>';}
+}
+function startClock(){stopClock();renderClock();clockTimer=setInterval(renderClock,1000);}
+function stopClock(){if(clockTimer){clearInterval(clockTimer);clockTimer=null;}}
+
+function renderEink(){
+  if(mode==='clock'){startClock();document.getElementById('nav-under').style.display='none';return;}
+  stopClock();
+  const item=currentItem(),el=document.getElementById('eink-content');
+  const sno=document.getElementById('spell-next-outer'),nu=document.getElementById('nav-under');
+  if(!item){el.innerHTML='<div class="eink-idle">No active items</div>';sno.style.display='none';nu.style.display='none';return;}
+  nu.style.display='block';const val=item.word;
+  if(disp==='whole'||mode==='sentences'){sno.style.display='none';el.innerHTML='<div class="'+(mode==='sentences'?'eink-sentence':'eink-word')+'">'+val+'</div>';}
+  else if(disp==='spell'){sno.style.display='block';el.innerHTML='<div class="eink-spell-row">'+val.split('').map((l,i)=>'<span class="eink-spell-letter'+(i>spellIdx?' hidden':'')+'>'+l+'</span>').join('')+'</div>';}
+  else if(disp==='count'){sno.style.display='none';const num=parseInt(val);el.innerHTML='<div class="eink-num">'+val+'</div>'+(!isNaN(num)?'<div class="eink-dots">'+Array(Math.min(num,10)).fill(0).map(()=>'<div class="eink-dot"></div>').join('')+'</div>':'');}
+}
+
+function renderDispRow(){
+  const opts=dispOptions();if(!opts.find(o=>o.k===disp)){disp=opts[0].k;spellIdx=0;}
+  document.getElementById('disp-row').innerHTML=opts.map(o=>'<div class="disp-btn'+(disp===o.k?' active':'')+'" data-disp="'+o.k+'">'+o.l+'</div>').join('');
+  document.getElementById('disp-panel').style.display=(opts.length>1&&mode!=='clock')?'block':'none';
+}
+
+function renderList(){
+  const isClock=mode==='clock';
+  document.getElementById('list-panel').style.display=isClock?'none':'block';
+  document.getElementById('lesson-controls').style.display=isClock?'none':'block';
+  if(isClock)return;
+  const full=getList(),active=getActive(),aw=active[idx]?active[idx].word:null;
+  const labels={words:'Words',letters:'Letters',numbers:'Numbers',sentences:'Sentences',months:'Months',days:'Days of week'};
+  document.getElementById('list-label').textContent=(labels[mode]||mode)+' list';
+  document.getElementById('word-list').innerHTML=full.map((w,fi)=>{
+    const isA=w.word===aw,grad=w.status==='got'&&!testAll;
+    return '<div class="word-row'+(isA?' active':'')+(grad?' graduated':'')+'" onclick="selectWord('+fi+')"><span class="wtext" title="'+w.word+'">'+w.word+'</span><div class="wactions"><span class="ibtn'+(w.status==='needs'?' needs':'')+'" onclick="event.stopPropagation();flagItem('+fi+',\'needs\')">&#x1F44E;</span><span class="ibtn'+(w.status==='got'?' got':'')+'" onclick="event.stopPropagation();flagItem('+fi+',\'got\')">&#x1F44D;</span><span class="ibtn" onclick="event.stopPropagation();removeItem('+fi+')">&#x2715;</span></div></div>';
+  }).join('');
+  const ar=document.getElementById('add-row');
+  if(mode==='months'||mode==='days'){ar.style.display='none';return;}
+  ar.style.display='flex';
+  if(mode==='sentences'){ar.innerHTML='<textarea id="add-input" placeholder="Type a sentence..."></textarea><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addItem();}});}
+  else{const ph={words:'Add word...',letters:'Add letter...',numbers:'Add number...'};ar.innerHTML='<input id="add-input" placeholder="'+(ph[mode]||'Add...')+'" maxlength="60"/><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});}
+}
+
+function renderStats(){
+  if(mode==='clock'){document.getElementById('stats-row').innerHTML='';document.getElementById('progress-label').textContent='';document.getElementById('progress-fill').style.width='0%';document.getElementById('milestone-note').textContent='';return;}
+  const list=getList(),got=list.filter(w=>w.status==='got').length,needs=list.filter(w=>w.status==='needs').length;
+  document.getElementById('stats-row').innerHTML='<div class="stat"><div class="snum">'+list.length+'</div><div class="slabel">Total</div></div><div class="stat"><div class="snum" style="color:#3b6d11;">'+got+'</div><div class="slabel">Got it</div></div><div class="stat"><div class="snum" style="color:#854f0b;">'+needs+'</div><div class="slabel">Needs work</div></div><div class="stat"><div class="snum">'+(list.length-got)+'</div><div class="slabel">Active</div></div>';
+  if(list.length>0){
+    const pct=Math.round((got/list.length)*100);
+    document.getElementById('progress-fill').style.width=pct+'%';
+    document.getElementById('progress-label').textContent='Mastery: '+pct+'% — need 80% to unlock next level';
+    if(['letters','numbers','words'].includes(mode)){
+      const bk=mode==='letters'?'letterBatch':mode==='numbers'?'numberBatch':'wordBatch';
+      const kid=getKid();const bn=kid?kid.lists[bk]:0;const batches=BATCH_NAMES[mode];
+      if(bn<batches.length-1){const next=batches[bn+1];document.getElementById('milestone-note').textContent='Next level: '+next.slice(0,5).join(', ')+(next.length>5?'...':'');}
+      else document.getElementById('milestone-note').textContent='All levels unlocked!';
+    } else document.getElementById('milestone-note').textContent='';
+  } else {document.getElementById('progress-fill').style.width='0%';document.getElementById('progress-label').textContent='';document.getElementById('milestone-note').textContent='';}
+}
+
+function renderKids(){
+  document.getElementById('kid-row').innerHTML=state.kids.map(k=>'<div class="kid-chip'+(k.name===state.activeKid?' active':'')+'" onclick="selectKid(\''+k.name+'\')">'+k.name+'<span class="kid-age">age '+k.age+'</span></div>').join('')+'<div class="kid-chip add" onclick="openModal()">+</div>';
+  const has=!!state.activeKid;
+  document.getElementById('kid-content').style.display=has?'block':'none';
+  document.getElementById('no-kid').style.display=state.kids.length===0?'block':'none';
+}
+
+function renderAll(){
+  renderKids();if(!state.activeKid)return;
+  document.getElementById('clock-panel').style.display=mode==='clock'?'block':'none';
+  renderStats();renderDispRow();renderList();renderEink();checkMastery();
+}
+
+function selectKid(n){state.activeKid=n;idx=0;spellIdx=0;testAll=false;pendingUnlock=null;document.getElementById('mastery-banner').style.display='none';document.getElementById('test-all-btn').classList.remove('on');save();renderAll();}
+function selectWord(fi){const w=getList()[fi];if(!w)return;const ai=getActive().findIndex(x=>x.word===w.word);if(ai>=0){idx=ai;spellIdx=0;renderList();renderEink();}}
+function flagItem(fi,status){const list=getList();if(!list[fi])return;list[fi].status=list[fi].status===status?null:status;save();const a=getActive();if(idx>=a.length)idx=Math.max(0,a.length-1);spellIdx=0;renderAll();}
+function removeItem(fi){getList().splice(fi,1);save();const a=getActive();if(idx>=a.length)idx=Math.max(0,a.length-1);spellIdx=0;renderAll();}
+function addItem(){const inp=document.getElementById('add-input');const raw=inp.value.trim();if(!raw)return;const list=getList();if(!list.find(w=>w.word===raw)){list.push({word:raw,status:null});save();}inp.value='';renderAll();}
+function flag(status){const item=currentItem();if(!item)return;const fi=getList().findIndex(w=>w.word===item.word);if(fi>=0)flagItem(fi,status);}
+function nav(dir){const a=getActive();if(!a.length)return;idx=(idx+dir+a.length)%a.length;spellIdx=0;renderList();renderEink();}
+function spellNext(){const item=currentItem();if(!item)return;if(spellIdx<item.word.length-1){spellIdx++;renderEink();}}
+function toggleTestAll(){testAll=!testAll;idx=0;spellIdx=0;document.getElementById('test-all-btn').classList.toggle('on',testAll);renderAll();}
+function toggleSpeak(){
+  const btn=document.getElementById('speak-btn'),item=currentItem();
+  if(!item||!window.speechSynthesis)return;
+  if(speaking){window.speechSynthesis.cancel();speaking=false;btn.classList.remove('playing');btn.textContent='▶ Say it aloud';return;}
+  speaking=true;btn.classList.add('playing');btn.textContent='◼ Speaking...';
+  const u=new SpeechSynthesisUtterance(item.word);u.rate=0.8;
+  u.onend=()=>{speaking=false;btn.classList.remove('playing');btn.textContent='▶ Say it aloud';};
+  window.speechSynthesis.speak(u);
+}
+function openModal(){document.getElementById('modal').style.display='flex';setTimeout(()=>document.getElementById('kid-name-input').focus(),50);}
+function closeModal(){document.getElementById('modal').style.display='none';document.getElementById('kid-name-input').value='';document.getElementById('kid-age-input').value='';}
+function confirmAddKid(){
+  const name=document.getElementById('kid-name-input').value.trim();
+  const age=parseInt(document.getElementById('kid-age-input').value)||3;
+  if(!name||state.kids.find(k=>k.name===name))return;
+  const newId='k_'+Date.now();
+  const kid={id:newId,name,age,lists:newKidLists(age)};
+  state.kids.push(kid);state.activeKid=name;idx=0;spellIdx=0;
+  lsdb.collection('learnscreen_kids').doc(newId).set({nickname:name,age:age,lists:kid.lists}).then(function(){
+    closeModal();renderAll();
+  });
+}
+document.getElementById('kid-name-input').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('kid-age-input').focus();});
+document.getElementById('kid-age-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddKid();});
+document.getElementById('mode-grid').addEventListener('click',e=>{const btn=e.target.closest('.mode-btn');if(!btn)return;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');mode=btn.dataset.mode;idx=0;spellIdx=0;if(mode!=='clock')stopClock();pendingUnlock=null;document.getElementById('mastery-banner').style.display='none';renderAll();});
+document.getElementById('disp-row').addEventListener('click',e=>{const btn=e.target.closest('.disp-btn');if(!btn)return;document.querySelectorAll('.disp-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');disp=btn.dataset.disp;spellIdx=0;renderEink();});
+document.getElementById('clock-disp-row').addEventListener('click',e=>{const btn=e.target.closest('[data-cdisp]');if(!btn)return;document.querySelectorAll('[data-cdisp]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');clockDisp=btn.dataset.cdisp;renderClock();});
+loadKids();
+</script>
+</body>
+</html>
