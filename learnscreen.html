@@ -286,11 +286,11 @@ function newKidLists(age){
   return{
     words:c.wb>=0?buildUpTo(WORD_BATCHES,c.wb):[],
     letters:buildUpTo(LETTER_BATCHES,c.lb),
-    numbers:buildUpTo(NUMBER_BATCHES,c.nb),
+    numbers:NUMBER_BATCHES.flat().map(n=>({word:n,status:null})),
     sentences:[],
-    months:c.months?ALL_MONTHS.map(m=>({word:m,status:null})):[],
-    days:c.days?ALL_DAYS.map(d=>({word:d,status:null})):[],
-    letterBatch:c.lb,numberBatch:c.nb,wordBatch:c.wb,
+    months:ALL_MONTHS.map(m=>({word:m,status:null})),
+    days:ALL_DAYS.map(d=>({word:d,status:null})),
+    letterBatch:c.lb,numberBatch:NUMBER_BATCHES.length-1,wordBatch:c.wb,
     custom:{},hiddenModes:[]
   };
 }
