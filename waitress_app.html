@@ -65,9 +65,19 @@
   #finish-screen h1 { font-size: 30px; color: #C9A876; }
   #finish-screen .amt { font-size: 48px; color: #1e7d32; font-weight: bold; }
   #finish-screen button { font-size: 20px; padding: 14px 30px; border: none; background: #4CAF50; color: white; font-weight: bold; border-radius: 8px; margin-top: 20px; }
+  #toast {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.85);
+    background: #C9A876; color: #0A0D14; font-weight: bold; font-size: 22px;
+    padding: 16px 28px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none; z-index: 999; transition: opacity 0.15s, transform 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
 </style>
 </head>
 <body>
+
+<div id="toast"></div>
 
 <div id="titlebar">
   <span class="logo-mark"><img src="logo.png" alt="Millscat" style="height:26px; width:auto;"></span>
@@ -205,9 +215,19 @@ function renderAllMenu() {
   }
 }
 
+var toastTimer=null;
+function showToast(item) {
+  var t = document.getElementById('toast');
+  t.innerHTML = (item.emoji||'') + ' Added ' + item.name + '!';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 1000);
+}
+
 function addItem(item) {
   currentOrder.push(item);
   renderOrder();
+  showToast(item);
 }
 
 function removeItem(idx) {
