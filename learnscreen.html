@@ -626,7 +626,6 @@ function renderDispRow(){
 function renderList(){
   const isClock=mode==='clock';
   document.getElementById('list-panel').style.display=isClock?'none':'block';
-  document.getElementById('lesson-controls').style.display=isClock?'none':'block';
   if(isClock)return;
   const isCustom=mode.indexOf('custom:')===0;
   const full=getList(),active=getActive(),aw=active[idx]?active[idx].word:null;
@@ -638,10 +637,9 @@ function renderList(){
     return '<div class="word-row'+(isA?' active':'')+(grad?' graduated':'')+'" onclick="selectWord('+fi+')"><span class="wtext" title="'+w.word+'">'+w.word+'</span><div class="wactions"><span class="ibtn'+(w.status==='needs'?' needs':'')+'" onclick="event.stopPropagation();flagItem('+fi+',\'needs\')">&#x1F44E;</span><span class="ibtn'+(w.status==='got'?' got':'')+'" onclick="event.stopPropagation();flagItem('+fi+',\'got\')">&#x1F44D;</span><span class="ibtn" onclick="event.stopPropagation();removeItem('+fi+')">&#x2715;</span></div></div>';
   }).join('');
   const ar=document.getElementById('add-row');
-  if(mode==='months'||mode==='days'){ar.style.display='none';return;}
   ar.style.display='flex';
   if(mode==='sentences'){ar.innerHTML='<textarea id="add-input" placeholder="Type a sentence..."></textarea><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addItem();}});}
-  else{const ph={words:'Add word...',letters:'Add letter...',numbers:'Add number...'};ar.innerHTML='<input id="add-input" placeholder="'+(isCustom?'Add item...':(ph[mode]||'Add...'))+'" maxlength="60"/><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});}
+  else{const ph={words:'Add word...',letters:'Add letter...',numbers:'Add number...',months:'Add month...',days:'Add day...'};ar.innerHTML='<input id="add-input" placeholder="'+(isCustom?'Add item...':(ph[mode]||'Add...'))+'" maxlength="60"/><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});}
 }
 
 function renderStats(){
