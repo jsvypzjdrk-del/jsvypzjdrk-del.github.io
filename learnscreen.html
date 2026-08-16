@@ -44,8 +44,7 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 .kid-chip.active { background: #C9A876; color: #0A0D14; border-color: #C9A876; }
 .kid-chip.add { font-size: 20px; padding: 3px 10px; color: #888; }
 .kid-age { font-size: 11px; color: #888; margin-left: 3px; }
-.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.mode-btn { font-size: 12px; font-weight: 500; padding: 9px 4px; border-radius: 10px; border: 1px solid #bbb; background: #dedad3; color: #444; cursor: pointer; text-align: center; }
+.mode-btn { font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 20px; border: 1px solid #bbb; background: #dedad3; color: #444; cursor: pointer; text-align: center; white-space: nowrap; flex-shrink: 0; }
 .mode-btn.active { background: #C9A876; color: #0A0D14; border-color: #C9A876; }
 .disp-row { display: flex; gap: 7px; flex-wrap: wrap; }
 .disp-btn { font-size: 11px; padding: 5px 10px; border-radius: 8px; border: 1px solid #bbb; background: #dedad3; color: #555; cursor: pointer; }
@@ -173,7 +172,10 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 </div>
 
 <div class="panel">
-  <div class="sec" onclick="togglePanel('kids-body','kids-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Kids <span id="kids-chev">▾</span></div>
+  <div class="sec" style="display:flex; justify-content:space-between; align-items:center;">
+    Kids
+    <span onclick="openSettings()" style="cursor:pointer; font-size:18px;" aria-label="Settings">⚙️</span>
+  </div>
   <div id="kids-body">
     <div class="kid-row" id="kid-row"></div>
     <div id="no-kid" class="no-kid" style="display:none;">Tap + to add a kid.</div>
@@ -181,8 +183,17 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 </div>
 
 <div id="kid-content" style="display:none;">
-  <div class="panel">
-    <div class="sec" onclick="togglePanel('progress-body','progress-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Progress <span id="progress-chev">▾</span></div>
+  <div class="mode-grid" id="mode-grid" style="display:flex; flex-wrap:nowrap; overflow-x:auto; gap:8px; padding:10px 2px; margin-bottom:6px;">
+    <div class="mode-btn active" data-mode="words">Words</div>
+    <div class="mode-btn" data-mode="letters">Letters</div>
+    <div class="mode-btn" data-mode="numbers">Numbers</div>
+    <div class="mode-btn" data-mode="sentences">Sentences</div>
+    <div class="mode-btn" data-mode="months">Months</div>
+    <div class="mode-btn" data-mode="days">Days of Week</div>
+    <div class="mode-btn" data-mode="clock">Clock</div>
+  </div>
+
+  <div class="panel" style="display:none;">
     <div id="progress-body">
       <div class="stats-row" id="stats-row"></div>
       <div class="progress-label" id="progress-label"></div>
@@ -190,27 +201,25 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
       <div class="milestone-note" id="milestone-note"></div>
     </div>
   </div>
-  <div class="panel">
-    <div class="sec" onclick="togglePanel('mode-body','mode-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Mode <span id="mode-chev">▾</span></div>
-    <div id="mode-body">
-      <div class="mode-grid" id="mode-grid">
-        <div class="mode-btn active" data-mode="words">Words</div>
-        <div class="mode-btn" data-mode="letters">Letters</div>
-        <div class="mode-btn" data-mode="numbers">Numbers</div>
-        <div class="mode-btn" data-mode="sentences">Sentences</div>
-        <div class="mode-btn" data-mode="months">Months</div>
-        <div class="mode-btn" data-mode="days">Days of Week</div>
-        <div class="mode-btn" data-mode="clock">Clock</div>
-      </div>
+
+  <div class="panel" style="display:none;">
+    <div id="lesson-body">
+      <div class="thumb-row"><div class="thumb-btn" onclick="flag('needs')">👎</div><div class="thumb-btn" onclick="flag('got')">👍</div></div>
+      <button class="speak-btn" id="speak-btn" onclick="toggleSpeak()">▶ Say it aloud</button>
+      <button class="test-all-btn" id="test-all-btn" onclick="toggleTestAll()">Test all (include graduated)</button>
     </div>
   </div>
-  <div id="disp-panel" class="panel">
-    <div class="sec" onclick="togglePanel('disp-body','disp-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Display style <span id="disp-chev">▾</span></div>
-    <div id="disp-body"><div class="disp-row" id="disp-row"></div></div>
-  </div>
-  <div id="clock-panel" class="panel" style="display:none;">
-    <div class="sec" onclick="togglePanel('clock-body','clock-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Clock style <span id="clock-chev">▾</span></div>
-    <div id="clock-body">
+</div>
+
+<div class="modal-bg" id="settings-modal" style="display:none;">
+  <div class="modal" style="max-height:80vh; overflow-y:auto;">
+    <h3 style="display:flex; justify-content:space-between; align-items:center;">Settings <span onclick="closeSettings()" style="cursor:pointer; font-size:16px;">✕</span></h3>
+    <div id="disp-panel">
+      <div class="sec">Display style</div>
+      <div class="disp-row" id="disp-row"></div>
+    </div>
+    <div id="clock-panel" style="display:none; margin-top:14px;">
+      <div class="sec">Clock style</div>
       <div class="disp-row" id="clock-disp-row">
         <div class="disp-btn active" data-cdisp="digital">Digital</div>
         <div class="disp-btn" data-cdisp="analog">Analog + Digital</div>
@@ -219,17 +228,10 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
       </div>
       <div class="clock-info" id="clock-info"></div>
     </div>
-  </div>
-  <div id="list-panel" class="panel">
-    <div class="sec" onclick="togglePanel('list-body','list-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;"><span id="list-label">List</span> <span id="list-chev">▾</span></div>
-    <div id="list-body"><div class="word-list" id="word-list"></div><div class="add-row" id="add-row"></div></div>
-  </div>
-  <div id="lesson-controls" class="panel">
-    <div class="sec" onclick="togglePanel('lesson-body','lesson-chev')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">Lesson controls <span id="lesson-chev">▾</span></div>
-    <div id="lesson-body">
-      <div class="thumb-row"><div class="thumb-btn" onclick="flag('needs')">👎</div><div class="thumb-btn" onclick="flag('got')">👍</div></div>
-      <button class="speak-btn" id="speak-btn" onclick="toggleSpeak()">▶ Say it aloud</button>
-      <button class="test-all-btn" id="test-all-btn" onclick="toggleTestAll()">Test all (include graduated)</button>
+    <div id="list-panel" style="margin-top:14px;">
+      <div class="sec"><span id="list-label">List</span></div>
+      <div class="word-list" id="word-list"></div>
+      <div class="add-row" id="add-row"></div>
     </div>
   </div>
 </div>
@@ -251,16 +253,11 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 </div><!-- /app-content -->
 
 <script>
-function togglePanel(bodyId,chevId){
-  var body=document.getElementById(bodyId);
-  var chev=document.getElementById(chevId);
-  if(body.style.display==='none'){
-    body.style.display='';
-    chev.textContent='▾';
-  }else{
-    body.style.display='none';
-    chev.textContent='▸';
-  }
+function openSettings(){
+  document.getElementById('settings-modal').style.display='flex';
+}
+function closeSettings(){
+  document.getElementById('settings-modal').style.display='none';
 }
 
 const ALL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
