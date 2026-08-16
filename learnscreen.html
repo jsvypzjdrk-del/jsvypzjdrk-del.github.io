@@ -191,6 +191,14 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
     <div class="mode-btn" data-mode="months">Months</div>
     <div class="mode-btn" data-mode="days">Days of Week</div>
     <div class="mode-btn" data-mode="clock">Clock</div>
+    <span id="custom-mode-pills" style="display:contents;"></span>
+    <div class="mode-btn" onclick="createCustomList()" style="background:transparent; border-style:dashed; color:#9c8560;">+ New List</div>
+  </div>
+
+  <div class="panel" id="list-panel">
+    <div class="sec"><span id="list-label">List</span></div>
+    <div class="word-list" id="word-list"></div>
+    <div class="add-row" id="add-row"></div>
   </div>
 
   <div class="panel" style="display:none;">
@@ -227,11 +235,6 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
         <div class="disp-btn" data-cdisp="teach">Teaching mode</div>
       </div>
       <div class="clock-info" id="clock-info"></div>
-    </div>
-    <div id="list-panel" style="margin-top:14px;">
-      <div class="sec"><span id="list-label">List</span></div>
-      <div class="word-list" id="word-list"></div>
-      <div class="add-row" id="add-row"></div>
     </div>
   </div>
 </div>
@@ -287,7 +290,8 @@ function newKidLists(age){
     sentences:[],
     months:c.months?ALL_MONTHS.map(m=>({word:m,status:null})):[],
     days:c.days?ALL_DAYS.map(d=>({word:d,status:null})):[],
-    letterBatch:c.lb,numberBatch:c.nb,wordBatch:c.wb
+    letterBatch:c.lb,numberBatch:c.nb,wordBatch:c.wb,
+    custom:{},hiddenModes:[]
   };
 }
 
@@ -528,6 +532,8 @@ function loadKids(){
     state.kids=[];
     snapshot.forEach(function(doc){
       var d=doc.data();
+      if(!d.lists.custom) d.lists.custom={};
+      if(!d.lists.hiddenModes) d.lists.hiddenModes=[];
       state.kids.push({id:doc.id,name:d.nickname,age:d.age,lists:d.lists});
     });
     if(state.kids.length>0 && !state.activeKid) state.activeKid=state.kids[0].name;
@@ -540,7 +546,11 @@ function save(){
   lsdb.collection('learnscreen_kids').doc(kid.id).set({parentId:currentParent,nickname:kid.name,age:kid.age,lists:kid.lists});
 }
 function getKid(){return state.kids.find(k=>k.name===state.activeKid);}
-function getList(){const k=getKid();return k?k.lists[mode]:[];}
+function getList(){
+  const k=getKid();if(!k)return[];
+  if(mode.indexOf('custom:')===0){const nm=mode.slice(7);if(!k.lists.custom[nm])k.lists.custom[nm]=[];return k.lists.custom[nm];}
+  return k.lists[mode];
+}
 function getActive(){const l=getList();return testAll?l:l.filter(w=>w.status!=='got');}
 function currentItem(){return getActive()[idx];}
 
@@ -618,9 +628,11 @@ function renderList(){
   document.getElementById('list-panel').style.display=isClock?'none':'block';
   document.getElementById('lesson-controls').style.display=isClock?'none':'block';
   if(isClock)return;
+  const isCustom=mode.indexOf('custom:')===0;
   const full=getList(),active=getActive(),aw=active[idx]?active[idx].word:null;
   const labels={words:'Words',letters:'Letters',numbers:'Numbers',sentences:'Sentences',months:'Months',days:'Days of week'};
-  document.getElementById('list-label').textContent=(labels[mode]||mode)+' list';
+  const listLabelText=isCustom?mode.slice(7):(labels[mode]||mode);
+  document.getElementById('list-label').innerHTML=listLabelText+' list <span onclick="deleteList()" style="color:#c92a2a; cursor:pointer; font-size:12px; margin-left:8px; text-decoration:underline;">Delete list</span>';
   document.getElementById('word-list').innerHTML=full.map((w,fi)=>{
     const isA=w.word===aw,grad=w.status==='got'&&!testAll;
     return '<div class="word-row'+(isA?' active':'')+(grad?' graduated':'')+'" onclick="selectWord('+fi+')"><span class="wtext" title="'+w.word+'">'+w.word+'</span><div class="wactions"><span class="ibtn'+(w.status==='needs'?' needs':'')+'" onclick="event.stopPropagation();flagItem('+fi+',\'needs\')">&#x1F44E;</span><span class="ibtn'+(w.status==='got'?' got':'')+'" onclick="event.stopPropagation();flagItem('+fi+',\'got\')">&#x1F44D;</span><span class="ibtn" onclick="event.stopPropagation();removeItem('+fi+')">&#x2715;</span></div></div>';
@@ -629,7 +641,7 @@ function renderList(){
   if(mode==='months'||mode==='days'){ar.style.display='none';return;}
   ar.style.display='flex';
   if(mode==='sentences'){ar.innerHTML='<textarea id="add-input" placeholder="Type a sentence..."></textarea><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addItem();}});}
-  else{const ph={words:'Add word...',letters:'Add letter...',numbers:'Add number...'};ar.innerHTML='<input id="add-input" placeholder="'+(ph[mode]||'Add...')+'" maxlength="60"/><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});}
+  else{const ph={words:'Add word...',letters:'Add letter...',numbers:'Add number...'};ar.innerHTML='<input id="add-input" placeholder="'+(isCustom?'Add item...':(ph[mode]||'Add...'))+'" maxlength="60"/><button onclick="addItem()">Add</button>';document.getElementById('add-input').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});}
 }
 
 function renderStats(){
@@ -659,7 +671,52 @@ function renderKids(){
 function renderAll(){
   renderKids();if(!state.activeKid)return;
   document.getElementById('clock-panel').style.display=mode==='clock'?'block':'none';
-  renderStats();renderDispRow();renderList();renderEink();checkMastery();
+  renderModePills();renderStats();renderDispRow();renderList();renderEink();checkMastery();
+}
+
+function renderModePills(){
+  const kid=getKid();if(!kid)return;
+  const hidden=kid.lists.hiddenModes||[];
+  document.querySelectorAll('#mode-grid .mode-btn[data-mode]').forEach(b=>{
+    if(b.dataset.mode.indexOf('custom:')===0)return;
+    b.style.display=hidden.includes(b.dataset.mode)?'none':'';
+  });
+  const container=document.getElementById('custom-mode-pills');
+  const names=Object.keys(kid.lists.custom||{});
+  container.innerHTML=names.map(nm=>'<div class="mode-btn'+(mode==='custom:'+nm?' active':'')+'" data-mode="custom:'+nm.replace(/"/g,'&quot;')+'">'+nm+'</div>').join('');
+  document.querySelectorAll('#mode-grid .mode-btn').forEach(b=>{if(b.dataset.mode)b.classList.toggle('active',b.dataset.mode===mode);});
+}
+
+function createCustomList(){
+  const kid=getKid();if(!kid)return;
+  const name=prompt('Name this list (e.g. Colors, Animals):');
+  if(!name)return;
+  const trimmed=name.trim();
+  if(!trimmed)return;
+  if(!kid.lists.custom)kid.lists.custom={};
+  if(kid.lists.custom[trimmed]){alert('A list with that name already exists.');return;}
+  kid.lists.custom[trimmed]=[];
+  mode='custom:'+trimmed;idx=0;spellIdx=0;
+  save();renderAll();
+}
+
+function deleteList(){
+  const kid=getKid();if(!kid)return;
+  const isCustom=mode.indexOf('custom:')===0;
+  const nm=isCustom?mode.slice(7):({words:'Words',letters:'Letters',numbers:'Numbers',sentences:'Sentences',months:'Months',days:'Days of week'}[mode]||mode);
+  if(!confirm('Delete the list "'+nm+'" and all its items?'))return;
+  if(isCustom){
+    delete kid.lists.custom[mode.slice(7)];
+  }else{
+    kid.lists[mode]=[];
+    if(!kid.lists.hiddenModes)kid.lists.hiddenModes=[];
+    if(!kid.lists.hiddenModes.includes(mode))kid.lists.hiddenModes.push(mode);
+  }
+  const priority=['words','letters','numbers','sentences','months','days'];
+  const fallback=priority.find(m=>!(kid.lists.hiddenModes||[]).includes(m));
+  mode=fallback||'clock';
+  idx=0;spellIdx=0;
+  save();renderAll();
 }
 
 function selectKid(n){state.activeKid=n;idx=0;spellIdx=0;testAll=false;pendingUnlock=null;document.getElementById('mastery-banner').style.display='none';document.getElementById('test-all-btn').classList.remove('on');save();renderAll();}
@@ -695,7 +752,7 @@ function confirmAddKid(){
 }
 document.getElementById('kid-name-input').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('kid-age-input').focus();});
 document.getElementById('kid-age-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddKid();});
-document.getElementById('mode-grid').addEventListener('click',e=>{const btn=e.target.closest('.mode-btn');if(!btn)return;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');mode=btn.dataset.mode;idx=0;spellIdx=0;if(mode!=='clock')stopClock();pendingUnlock=null;document.getElementById('mastery-banner').style.display='none';renderAll();});
+document.getElementById('mode-grid').addEventListener('click',e=>{const btn=e.target.closest('.mode-btn');if(!btn||!btn.dataset.mode)return;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');mode=btn.dataset.mode;idx=0;spellIdx=0;if(mode!=='clock')stopClock();pendingUnlock=null;document.getElementById('mastery-banner').style.display='none';renderAll();});
 document.getElementById('disp-row').addEventListener('click',e=>{const btn=e.target.closest('.disp-btn');if(!btn)return;document.querySelectorAll('.disp-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');disp=btn.dataset.disp;spellIdx=0;renderEink();});
 document.getElementById('clock-disp-row').addEventListener('click',e=>{const btn=e.target.closest('[data-cdisp]');if(!btn)return;document.querySelectorAll('[data-cdisp]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');clockDisp=btn.dataset.cdisp;renderClock();});
 loadParentProfiles();
