@@ -62,7 +62,7 @@
     overflow: hidden;
   }
   .car-sprite {
-    position: absolute; width: 46px; height: 70px; border-radius: 10px; background: #fff;
+    position: absolute; width: 11%; height: 14%; border-radius: 10%; background: #fff;
     box-shadow: 0 4px 10px rgba(0,0,0,0.35); background-size: cover; background-position: center;
     transform: translate(-50%, -50%); cursor: grab; border: 2px solid #C9A876;
   }
@@ -170,6 +170,35 @@ function closeCamera(){
   document.getElementById('home-screen').style.display='block';
 }
 
+function findCarBounds(canvas, ctx){
+  var w=canvas.width, h=canvas.height;
+  var data=ctx.getImageData(0,0,w,h).data;
+  function px(x,y){var i=(y*w+x)*4;return [data[i],data[i+1],data[i+2]];}
+  var samples=[px(3,3),px(w-4,3),px(3,h-4),px(w-4,h-4),px(Math.floor(w/2),3),px(3,Math.floor(h/2))];
+  var bg=[0,0,0];
+  samples.forEach(function(c){bg[0]+=c[0]/samples.length;bg[1]+=c[1]/samples.length;bg[2]+=c[2]/samples.length;});
+
+  var threshold=42, step=2;
+  var minX=w,minY=h,maxX=0,maxY=0,found=false;
+  for(var y=0;y<h;y+=step){
+    for(var x=0;x<w;x+=step){
+      var i=(y*w+x)*4;
+      var dr=data[i]-bg[0],dg=data[i+1]-bg[1],db=data[i+2]-bg[2];
+      var dist=Math.sqrt(dr*dr+dg*dg+db*db);
+      if(dist>threshold){
+        found=true;
+        if(x<minX)minX=x;if(x>maxX)maxX=x;
+        if(y<minY)minY=y;if(y>maxY)maxY=y;
+      }
+    }
+  }
+  if(!found || (maxX-minX)<w*0.1 || (maxY-minY)<h*0.1) return null;
+  var pad=Math.max(w,h)*0.08;
+  minX=Math.max(0,minX-pad);minY=Math.max(0,minY-pad);
+  maxX=Math.min(w,maxX+pad);maxY=Math.min(h,maxY+pad);
+  return {x:minX,y:minY,w:maxX-minX,h:maxY-minY};
+}
+
 function captureCar(){
   var video=document.getElementById('camera-video');
   var overlay=document.getElementById('crop-overlay');
@@ -189,11 +218,32 @@ function captureCar(){
   var cropW=ovRect.width/scale;
   var cropH=ovRect.height/scale;
 
+  // Step 1: grab the guide-box region at a decent working resolution
+  var work=document.createElement('canvas');
+  var WORK=500;
+  work.width=WORK;work.height=WORK;
+  var wctx=work.getContext('2d');
+  wctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, WORK, WORK);
+
+  // Step 2: auto-tighten around the car by trimming background-colored margins
+  var tight=findCarBounds(work, wctx);
+
   var canvas=document.getElementById('capture-canvas');
   var OUT=320; // compress to small square, keeps base64 size well under Firestore's 1MB doc limit
   canvas.width=OUT;canvas.height=OUT;
   var ctx=canvas.getContext('2d');
-  ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, OUT, OUT);
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,OUT,OUT);
+
+  if(tight){
+    // fit the tightened region into the output square, centered, preserving aspect ratio
+    var fitScale=Math.min(OUT/tight.w, OUT/tight.h)*0.94;
+    var drawW=tight.w*fitScale, drawH=tight.h*fitScale;
+    var dx=(OUT-drawW)/2, dy=(OUT-drawH)/2;
+    ctx.drawImage(work, tight.x, tight.y, tight.w, tight.h, dx, dy, drawW, drawH);
+  }else{
+    ctx.drawImage(work, 0, 0, WORK, WORK, 0, 0, OUT, OUT);
+  }
 
   document.getElementById('cam-status').textContent='Saving car...';
   canvas.toBlob(function(blob){
@@ -233,53 +283,119 @@ function closeLot(){
   document.getElementById('home-screen').style.display='block';
 }
 
+var TEXTURE_DEFS =
+  '<defs>' +
+    '<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/>' +
+    '<feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0"/></filter>' +
+    '<radialGradient id="vignette" cx="50%" cy="45%" r="75%">' +
+    '<stop offset="55%" stop-color="#000" stop-opacity="0"/>' +
+    '<stop offset="100%" stop-color="#000" stop-opacity="0.28"/></radialGradient>' +
+  '</defs>';
+
+function textureOverlay(){
+  return '<rect width="100" height="100" filter="url(#grain)"/>' +
+    '<rect width="100" height="100" fill="url(#vignette)"/>';
+}
+
 function slotLines(pts, h, facingDown, color){
   color = color || '#eee';
   var s = '';
   pts.forEach(function(p){
     var x = p[0], y = p[1];
     var y1 = y - h/2, y2 = y + h/2;
-    s += '<line x1="'+(x-8)+'" y1="'+y1+'" x2="'+(x-8)+'" y2="'+y2+'" stroke="'+color+'" stroke-width="0.8"/>';
-    s += '<line x1="'+(x+8)+'" y1="'+y1+'" x2="'+(x+8)+'" y2="'+y2+'" stroke="'+color+'" stroke-width="0.8"/>';
+    s += '<line x1="'+(x-8)+'" y1="'+y1+'" x2="'+(x-8)+'" y2="'+y2+'" stroke="'+color+'" stroke-width="0.8" stroke-opacity="0.62"/>';
+    s += '<line x1="'+(x+8)+'" y1="'+y1+'" x2="'+(x+8)+'" y2="'+y2+'" stroke="'+color+'" stroke-width="0.8" stroke-opacity="0.62"/>';
     var capY = facingDown ? y1 : y2;
-    s += '<line x1="'+(x-8)+'" y1="'+capY+'" x2="'+(x+8)+'" y2="'+capY+'" stroke="'+color+'" stroke-width="0.8"/>';
+    s += '<line x1="'+(x-8)+'" y1="'+capY+'" x2="'+(x+8)+'" y2="'+capY+'" stroke="'+color+'" stroke-width="0.8" stroke-opacity="0.62"/>';
   });
   return s;
 }
 
 var LOT_LAYOUTS = {
   city_lot: {
-    slots: [[14,34],[34,34],[54,34],[74,34],[14,70],[34,70],[54,70],[74,70]],
-    svg: '<rect width="100" height="100" fill="#55585c"/>' +
-      '<rect x="0" y="0" width="100" height="16" fill="#b8ab8e"/>' +
-      '<rect x="42" y="6" width="16" height="10" fill="#6b5f4a"/>' +
-      '<rect x="10" y="4" width="8" height="6" fill="#dfe6ea"/>' +
-      '<rect x="82" y="4" width="8" height="6" fill="#dfe6ea"/>' +
-      '<rect x="0" y="50" width="100" height="6" fill="#3f4144"/>' +
-      '<line x1="4" y1="53" x2="96" y2="53" stroke="#e8d97a" stroke-width="1" stroke-dasharray="4,3"/>' +
-      slotLines([[14,34],[34,34],[54,34],[74,34]], 20, true) +
-      slotLines([[14,70],[34,70],[54,70],[74,70]], 20, false)
+    slots: [[10,32],[24,32],[38,32],[62,32],[76,32],[90,32],[10,58],[24,58],[38,58],[62,58],[76,58],[90,58],[10,84],[24,84],[38,84],[62,84],[76,84],[90,84]],
+    svg: '<rect width="100" height="100" fill="#5c5f63"/>' +
+      // store building across the top
+      '<rect x="0" y="0" width="100" height="14" fill="#a1372f"/>' +
+      '<rect x="0" y="10" width="100" height="4" fill="#75211d"/>' +
+      '<rect x="40" y="2" width="20" height="8" fill="#e8e2d6"/>' +
+      '<rect x="6" y="2" width="10" height="6" fill="#e8b4b4"/>' +
+      '<rect x="84" y="2" width="10" height="6" fill="#e8b4b4"/>' +
+      // entrance crosswalk
+      '<rect x="44" y="14" width="12" height="6" fill="#d9d9d9"/>' +
+      '<line x1="45" y1="14" x2="45" y2="20" stroke="#6b6e72" stroke-width="1"/>' +
+      '<line x1="48" y1="14" x2="48" y2="20" stroke="#6b6e72" stroke-width="1"/>' +
+      '<line x1="51" y1="14" x2="51" y2="20" stroke="#6b6e72" stroke-width="1"/>' +
+      '<line x1="54" y1="14" x2="54" y2="20" stroke="#6b6e72" stroke-width="1"/>' +
+      // landscaped island between the two block groups
+      '<rect x="45" y="24" width="10" height="66" fill="#4a7c3a"/>' +
+      '<circle cx="50" cy="36" r="4" fill="#2e5c22"/>' +
+      '<circle cx="50" cy="60" r="4" fill="#2e5c22"/>' +
+      '<circle cx="50" cy="82" r="4" fill="#2e5c22"/>' +
+      // light poles
+      '<circle cx="4" cy="20" r="1.4" fill="#e8d97a"/>' +
+      '<circle cx="96" cy="20" r="1.4" fill="#e8d97a"/>' +
+      '<circle cx="4" cy="90" r="1.4" fill="#e8d97a"/>' +
+      '<circle cx="96" cy="90" r="1.4" fill="#e8d97a"/>' +
+      // driving lanes between rows
+      '<line x1="2" y1="45" x2="98" y2="45" stroke="#e8d97a" stroke-width="0.8" stroke-dasharray="3,2"/>' +
+      '<line x1="2" y1="71" x2="98" y2="71" stroke="#e8d97a" stroke-width="0.8" stroke-dasharray="3,2"/>' +
+      slotLines([[10,32],[24,32],[38,32]], 16, true) +
+      slotLines([[62,32],[76,32],[90,32]], 16, true) +
+      slotLines([[10,58],[24,58],[38,58]], 16, false) +
+      slotLines([[62,58],[76,58],[90,58]], 16, true) +
+      slotLines([[10,84],[24,84],[38,84]], 16, false) +
+      slotLines([[62,84],[76,84],[90,84]], 16, false)
   },
   race_track: {
-    slots: [[14,34],[34,34],[54,34],[74,34],[14,70],[34,70],[54,70],[74,70]],
-    svg: '<rect width="100" height="100" fill="#2e2a2a"/>' +
-      '<rect x="0" y="0" width="100" height="14" fill="#7a1f1f"/>' +
-      '<rect x="0" y="0" width="100" height="3" fill="#fff"/>' +
-      '<rect x="0" y="50" width="100" height="6" fill="#111"/>' +
-      '<line x1="4" y1="53" x2="96" y2="53" stroke="#fff" stroke-width="1" stroke-dasharray="3,3"/>' +
-      slotLines([[14,34],[34,34],[54,34],[74,34]], 20, true, '#f5a623') +
-      slotLines([[14,70],[34,70],[54,70],[74,70]], 20, false, '#f5a623')
+    slots: [[12,30],[28,30],[44,30],[60,30],[76,30],[92,30],[12,56],[28,56],[44,56],[60,56],[76,56],[92,56]],
+    svg: '<rect width="100" height="100" fill="#2b2b2b"/>' +
+      // track curve visible at the very top
+      '<rect x="0" y="0" width="100" height="10" fill="#333"/>' +
+      '<rect x="0" y="0" width="100" height="10" fill="url(#checker)"/>' +
+      '<defs><pattern id="checker" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(0)">' +
+      '<rect width="3" height="3" fill="#dcd8ce"/><rect x="3" y="3" width="3" height="3" fill="#dcd8ce"/>' +
+      '<rect x="3" width="3" height="3" fill="#222"/><rect y="3" width="3" height="3" fill="#222"/></pattern></defs>' +
+      '<rect x="0" y="8" width="100" height="2" fill="#d62828"/>' +
+      // pit wall + garage boxes for each stall
+      '<rect x="0" y="12" width="100" height="6" fill="#555"/>' +
+      Array.from({length:6}).map(function(_,i){var x=4+i*16;return '<rect x="'+x+'" y="12" width="14" height="6" fill="#a1372f"/><text x="'+(x+7)+'" y="17" font-size="4" fill="#fff" text-anchor="middle">'+(i+1)+'</text>';}).join('') +
+      // tire stacks between pit boxes
+      Array.from({length:5}).map(function(_,i){var x=18+i*16;return '<circle cx="'+x+'" cy="21" r="1.8" fill="#111"/><circle cx="'+x+'" cy="21" r="0.9" fill="#444"/>';}).join('') +
+      // aisle
+      '<rect x="0" y="42" width="100" height="6" fill="#111"/>' +
+      '<line x1="2" y1="45" x2="98" y2="45" stroke="#fff" stroke-width="0.8" stroke-dasharray="3,2"/>' +
+      slotLines([[12,30],[28,30],[44,30],[60,30],[76,30],[92,30]], 14, true, '#f5a623') +
+      slotLines([[12,56],[28,56],[44,56],[60,56],[76,56],[92,56]], 14, false, '#f5a623') +
+      // bottom grass runoff
+      '<rect x="0" y="80" width="100" height="20" fill="#3a5c2c"/>'
   },
   farm: {
-    slots: [[14,34],[34,34],[54,34],[74,34],[14,70],[34,70],[54,70],[74,70]],
-    svg: '<rect width="100" height="100" fill="#8d6e63"/>' +
-      '<rect x="0" y="0" width="100" height="16" fill="#c1440e"/>' +
-      '<polygon points="0,0 50,-8 100,0" fill="#8b2e0a" transform="translate(0,8)"/>' +
-      '<rect x="44" y="6" width="12" height="10" fill="#4a2a10"/>' +
-      '<rect x="0" y="50" width="100" height="6" fill="#5d4130"/>' +
-      '<line x1="4" y1="53" x2="96" y2="53" stroke="#e8d97a" stroke-width="1" stroke-dasharray="4,3"/>' +
-      slotLines([[14,34],[34,34],[54,34],[74,34]], 20, true, '#f0e6d2') +
-      slotLines([[14,70],[34,70],[54,70],[74,70]], 20, false, '#f0e6d2')
+    slots: [[16,40],[38,40],[60,40],[82,40],[16,72],[38,72],[60,72],[82,72]],
+    svg: '<rect width="100" height="100" fill="#8a7355"/>' +
+      // sky/grass border
+      '<rect x="0" y="0" width="100" height="100" fill="#b7d698"/>' +
+      // dirt parking yard
+      '<rect x="4" y="20" width="92" height="76" fill="#8a7355"/>' +
+      '<rect x="4" y="20" width="92" height="76" fill="none" stroke="#5d4130" stroke-width="1.4"/>' +
+      // barn
+      '<rect x="30" y="0" width="40" height="16" fill="#8a3229"/>' +
+      '<polygon points="28,0 50,-9 72,0" fill="#66231b"/>' +
+      '<rect x="46" y="6" width="8" height="10" fill="#4a2a10"/>' +
+      '<rect x="34" y="4" width="6" height="6" fill="#e8d9c0"/>' +
+      '<rect x="60" y="4" width="6" height="6" fill="#e8d9c0"/>' +
+      // silo
+      '<rect x="10" y="2" width="10" height="16" rx="5" fill="#c9c9c9"/>' +
+      '<ellipse cx="15" cy="2" rx="5" ry="2.4" fill="#9a9a9a"/>' +
+      // fence posts along the yard border
+      Array.from({length:10}).map(function(_,i){var x=6+i*9.5;return '<rect x="'+x+'" y="18" width="1.4" height="4" fill="#5d4130"/>';}).join('') +
+      // hay bales instead of light poles
+      '<circle cx="8" cy="90" r="3" fill="#d9b25c"/>' +
+      '<circle cx="92" cy="90" r="3" fill="#d9b25c"/>' +
+      // driving lane
+      '<line x1="8" y1="56" x2="92" y2="56" stroke="#c9b896" stroke-width="1" stroke-dasharray="3,2"/>' +
+      slotLines([[16,40],[38,40],[60,40],[82,40]], 20, true, '#f0e6d2') +
+      slotLines([[16,72],[38,72],[60,72],[82,72]], 20, false, '#f0e6d2')
   }
 };
 
@@ -296,7 +412,7 @@ function nearestSlot(layout, xPct, yPct){
 function setLayout(layout){
   activeLayout=layout;
   document.querySelectorAll('.layout-btn').forEach(function(b){b.classList.toggle('active', b.dataset.layout===layout);});
-  document.getElementById('lot-svg').innerHTML = LOT_LAYOUTS[layout].svg;
+  document.getElementById('lot-svg').innerHTML = TEXTURE_DEFS + LOT_LAYOUTS[layout].svg + textureOverlay();
   renderCarsOnMap();
 }
 
