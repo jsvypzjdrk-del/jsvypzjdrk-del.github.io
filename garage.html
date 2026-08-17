@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Toy Garage</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body { font-family: Arial, sans-serif; background: #0A0D14; color: #fff; }
+
+  #titlebar {
+    background: #0A0D14; color: #C9A876; padding: 10px 16px; font-size: 18px; font-weight: bold;
+    display: flex; align-items: center; gap: 10px; touch-action: auto;
+  }
+  #titlebar img { height: 26px; }
+  #titlebar a { color: #9c8560; text-decoration: none; font-size: 14px; margin-left: auto; }
+
+  /* ===== HOME SCREEN (choose action) ===== */
+  #home-screen { padding: 30px 20px; text-align: center; touch-action: auto; }
+  #home-screen h2 { color: #C9A876; }
+  .big-btn {
+    display: block; width: 100%; max-width: 320px; margin: 14px auto; padding: 24px;
+    font-size: 20px; font-weight: bold; border-radius: 16px; border: none; cursor: pointer;
+  }
+  #home-screen .cam-btn { background: #C9A876; color: #0A0D14; }
+  #home-screen .lot-btn { background: #14181f; color: #C9A876; border: 1px solid #3a3226; }
+
+  /* ===== CAMERA SCREEN ===== */
+  #camera-screen { display: none; position: fixed; inset: 0; background: #000; touch-action: auto; }
+  #camera-video { width: 100%; height: 100%; object-fit: cover; }
+  #crop-overlay {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 62vmin; height: 62vmin; max-width: 320px; max-height: 320px;
+    border: 6px dashed #FFD93D; border-radius: 24px;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
+    pointer-events: none;
+  }
+  #crop-overlay::after {
+    content: "🚗 put the car here!"; position: absolute; bottom: -38px; left: 0; right: 0;
+    text-align: center; color: #FFD93D; font-weight: bold; font-size: 15px;
+  }
+  #capture-btn {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    width: 84px; height: 84px; border-radius: 50%; background: #C9A876; border: 6px solid #fff;
+    font-size: 30px;
+  }
+  #cam-cancel {
+    position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.5); color: #fff;
+    border: none; border-radius: 20px; padding: 10px 18px; font-size: 14px;
+  }
+  #capture-canvas { display: none; }
+  #cam-status { position: absolute; top: 16px; right: 16px; color: #FFD93D; font-size: 13px; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 10px; }
+
+  /* ===== PARKING LOT SCREEN ===== */
+  #lot-screen { display: none; position: fixed; inset: 0; touch-action: none; }
+  #lot-map {
+    position: absolute; top: 56px; left: 0; right: 0; bottom: 110px;
+    background-size: cover; background-position: center;
+    overflow: hidden;
+  }
+  .car-sprite {
+    position: absolute; width: 46px; height: 70px; border-radius: 10px; background: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35); background-size: cover; background-position: center;
+    transform: translate(-50%, -50%); cursor: grab; border: 2px solid #C9A876;
+  }
+  .car-sprite.dragging { opacity: 0.75; z-index: 50; cursor: grabbing; }
+
+  #layout-bar {
+    position: absolute; top: 56px; left: 0; right: 0; display: flex; gap: 8px; padding: 8px;
+    background: rgba(10,13,20,0.85); z-index: 20; touch-action: auto;
+  }
+  .layout-btn {
+    flex: 1; padding: 10px 6px; border-radius: 10px; border: 1px solid #3a3226; background: #14181f;
+    color: #C9A876; font-size: 13px; font-weight: bold;
+  }
+  .layout-btn.active { background: #C9A876; color: #0A0D14; }
+
+  #toybox-tab {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 110px; background: #14181f;
+    border-top: 2px solid #C9A876; z-index: 30; touch-action: auto;
+  }
+  #toybox-label { color: #C9A876; font-size: 12px; font-weight: bold; padding: 6px 12px 0; }
+  #toybox-row { display: flex; gap: 10px; overflow-x: auto; padding: 6px 12px 10px; }
+  .toybox-item { flex-shrink: 0; width: 64px; height: 64px; border-radius: 10px; background-size: cover; background-position: center; border: 2px solid #3a3226; }
+
+  #lot-back { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.5); color: #fff; border: none; border-radius: 16px; padding: 6px 14px; font-size: 13px; z-index: 25; touch-action: auto; }
+  #add-car-fab {
+    position: absolute; bottom: 122px; right: 16px; width: 56px; height: 56px; border-radius: 50%;
+    background: #C9A876; color: #0A0D14; font-size: 26px; border: none; z-index: 25; touch-action: auto;
+  }
+</style>
+</head>
+<body>
+
+<div id="titlebar">
+  <img src="logo.png" alt="Millscat">
+  <span>Toy Garage</span>
+  <a href="index.html">&larr; Home</a>
+</div>
+
+<div id="home-screen">
+  <h2>🚗 Hot Wheels Garage</h2>
+  <button class="big-btn cam-btn" onclick="openCamera()">📸 Add a New Car</button>
+  <button class="big-btn lot-btn" onclick="openLot()">🅿️ Go to Parking Lot</button>
+</div>
+
+<div id="camera-screen">
+  <video id="camera-video" autoplay playsinline muted></video>
+  <div id="crop-overlay"></div>
+  <button id="cam-cancel" onclick="closeCamera()">✕ Cancel</button>
+  <div id="cam-status"></div>
+  <button id="capture-btn" onclick="captureCar()">📸</button>
+  <canvas id="capture-canvas"></canvas>
+</div>
+
+<div id="lot-screen">
+  <div id="layout-bar">
+    <div class="layout-btn active" data-layout="city_lot" onclick="setLayout('city_lot')">🏙️ City Lot</div>
+    <div class="layout-btn" data-layout="race_track" onclick="setLayout('race_track')">🏁 Race Track</div>
+    <div class="layout-btn" data-layout="farm" onclick="setLayout('farm')">🚜 Farm</div>
+  </div>
+  <button id="lot-back" onclick="closeLot()">✕ Close</button>
+  <div id="lot-map">
+    <svg id="lot-svg" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;"></svg>
+  </div>
+  <button id="add-car-fab" onclick="toggleToybox()">🧸</button>
+  <div id="toybox-tab" style="display:none;">
+    <div id="toybox-label">Tap a car to add it to the lot</div>
+    <div id="toybox-row"></div>
+  </div>
+</div>
+
+<script>
+var firebaseConfig = {
+  apiKey: "AIzaSyDNOrwbMD3zcl_G-VDH1LfEe0Kv4bILLN8",
+  authDomain: "millscat-tracker.firebaseapp.com",
+  projectId: "millscat-tracker",
+  storageBucket: "millscat-tracker.firebasestorage.app",
+  messagingSenderId: "718174074085",
+  appId: "1:718174074085:web:8927f197e2fbec9239d00c"
+};
+firebase.initializeApp(firebaseConfig);
+var gdb = firebase.firestore();
+
+var currentStream = null;
+var activeLayout = 'city_lot';
+var allCars = [];
+
+// ===== CAMERA =====
+function openCamera(){
+  document.getElementById('home-screen').style.display='none';
+  document.getElementById('camera-screen').style.display='block';
+  document.getElementById('cam-status').textContent='Starting camera...';
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}).then(function(stream){
+    currentStream=stream;
+    var v=document.getElementById('camera-video');
+    v.srcObject=stream;
+    document.getElementById('cam-status').textContent='';
+  }).catch(function(err){
+    document.getElementById('cam-status').textContent='Camera error: '+err.message;
+  });
+}
+
+function closeCamera(){
+  if(currentStream){currentStream.getTracks().forEach(function(t){t.stop();});currentStream=null;}
+  document.getElementById('camera-screen').style.display='none';
+  document.getElementById('home-screen').style.display='block';
+}
+
+function captureCar(){
+  var video=document.getElementById('camera-video');
+  var overlay=document.getElementById('crop-overlay');
+
+  // Map the on-screen crop box to actual video pixel coordinates.
+  // Video is displayed with object-fit:cover, so we compute the visible scale/offset.
+  var vw=video.videoWidth, vh=video.videoHeight;
+  var dispRect=video.getBoundingClientRect();
+  var scale=Math.max(dispRect.width/vw, dispRect.height/vh);
+  var renderedW=vw*scale, renderedH=vh*scale;
+  var offsetX=(dispRect.width-renderedW)/2;
+  var offsetY=(dispRect.height-renderedH)/2;
+
+  var ovRect=overlay.getBoundingClientRect();
+  var cropX=(ovRect.left-dispRect.left-offsetX)/scale;
+  var cropY=(ovRect.top-dispRect.top-offsetY)/scale;
+  var cropW=ovRect.width/scale;
+  var cropH=ovRect.height/scale;
+
+  var canvas=document.getElementById('capture-canvas');
+  var OUT=320; // compress to small square, keeps base64 size well under Firestore's 1MB doc limit
+  canvas.width=OUT;canvas.height=OUT;
+  var ctx=canvas.getContext('2d');
+  ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, OUT, OUT);
+
+  document.getElementById('cam-status').textContent='Saving car...';
+  canvas.toBlob(function(blob){
+    uploadCar(blob);
+  }, 'image/jpeg', 0.75);
+}
+
+function uploadCar(blob){
+  var id='car_'+Date.now();
+  var reader=new FileReader();
+  reader.onload=function(){
+    var dataUrl=reader.result;
+    if(dataUrl.length>900000){
+      document.getElementById('cam-status').textContent='Photo too big, try again with less background.';
+      return;
+    }
+    gdb.collection('garage_cars').doc(id).set({
+      id:id, imageUrl:dataUrl, currentLayout:'city_lot', posX:10, posY:10
+    }).then(function(){
+      document.getElementById('cam-status').textContent='Saved! 🎉';
+      setTimeout(function(){ closeCamera(); openLot(); },700);
+    }).catch(function(err){
+      document.getElementById('cam-status').textContent='Error: '+err.message;
+    });
+  };
+  reader.readAsDataURL(blob);
+}
+
+// ===== PARKING LOT =====
+function openLot(){
+  document.getElementById('home-screen').style.display='none';
+  document.getElementById('lot-screen').style.display='block';
+  loadCars();
+}
+function closeLot(){
+  document.getElementById('lot-screen').style.display='none';
+  document.getElementById('home-screen').style.display='block';
+}
+
+function slotLines(pts, h, facingDown, color){
+  color = color || '#eee';
+  var s = '';
+  pts.forEach(function(p){
+    var x = p[0], y = p[1];
+    var y1 = y - h/2, y2 = y + h/2;
+    s += '<line x1="'+(x-8)+'" y1="'+y1+'" x2="'+(x-8)+'" y2="'+y2+'" stroke="'+color+'" stroke-width="0.8"/>';
+    s += '<line x1="'+(x+8)+'" y1="'+y1+'" x2="'+(x+8)+'" y2="'+y2+'" stroke="'+color+'" stroke-width="0.8"/>';
+    var capY = facingDown ? y1 : y2;
+    s += '<line x1="'+(x-8)+'" y1="'+capY+'" x2="'+(x+8)+'" y2="'+capY+'" stroke="'+color+'" stroke-width="0.8"/>';
+  });
+  return s;
+}
+
+var LOT_LAYOUTS = {
+  city_lot: {
+    slots: [[14,34],[34,34],[54,34],[74,34],[14,70],[34,70],[54,70],[74,70]],
+    svg: '<rect width="100" height="100" fill="#55585c"/>' +
+      '<rect x="0" y="0" width="100" height="16" fill="#b8ab8e"/>' +
+      '<rect x="42" y="6" width="16" height="10" fill="#6b5f4a"/>' +
+      '<rect x="10" y="4" width="8" height="6" fill="#dfe6ea"/>' +
+      '<rect x="82" y="4" width="8" height="6" fill="#dfe6ea"/>' +
+      '<rect x="0" y="50" width="100" height="6" fill="#3f4144"/>' +
+      '<line x1="4" y1="53" x2="96" y2="53" stroke="#e8d97a" stroke-width="1" stroke-dasharray="4,3"/>' +
+      slotLines([[14,34],[34,34],[54,34],[74,34]], 20, true) +
+      slotLines([[14,70],[34,70],[54,70],[74,70]], 20, false)
+  },
+  race_track: {
+    slots: [[14,34],[34,34],[54,34],[74,34],[14,70],[34,70],[54,70],[74,70]],
+    svg: '<rect width="100" height="100" fill="#2e2a2a"/>' +
+      '<rect x="0" y="0" width="100" height="14" fill="#7a1f1f"/>' +
+      '<rect x="0" y="0" width="100" height="3" fill="#fff"/>' +
+      '<rect x="0" y="50" width="100" height="6" fill="#111"/>' +
+      '<line x1="4" y1="53" x2="96" y2="53" stroke="#fff" stroke-width="1" stroke-dasharray="3,3"/>' +
+      slotLines([[14,34],[34,34],[54,34],[74,34]], 20, true, '#f5a623') +
+      slotLines([[14,70],[34,70],[54,70],[74,70]], 20, false, '#f5a623')
+  },
+  farm: {
+    slots: [[14,34],[34,34],[54,34],[74,34],[14,70],[34,70],[54,70],[74,70]],
+    svg: '<rect width="100" height="100" fill="#8d6e63"/>' +
+      '<rect x="0" y="0" width="100" height="16" fill="#c1440e"/>' +
+      '<polygon points="0,0 50,-8 100,0" fill="#8b2e0a" transform="translate(0,8)"/>' +
+      '<rect x="44" y="6" width="12" height="10" fill="#4a2a10"/>' +
+      '<rect x="0" y="50" width="100" height="6" fill="#5d4130"/>' +
+      '<line x1="4" y1="53" x2="96" y2="53" stroke="#e8d97a" stroke-width="1" stroke-dasharray="4,3"/>' +
+      slotLines([[14,34],[34,34],[54,34],[74,34]], 20, true, '#f0e6d2') +
+      slotLines([[14,70],[34,70],[54,70],[74,70]], 20, false, '#f0e6d2')
+  }
+};
+
+function nearestSlot(layout, xPct, yPct){
+  var pts=LOT_LAYOUTS[layout].slots;
+  var best=null, bestDist=999;
+  pts.forEach(function(p){
+    var d=Math.hypot(p[0]-xPct, p[1]-yPct);
+    if(d<bestDist){bestDist=d;best=p;}
+  });
+  return bestDist<13 ? best : null;
+}
+
+function setLayout(layout){
+  activeLayout=layout;
+  document.querySelectorAll('.layout-btn').forEach(function(b){b.classList.toggle('active', b.dataset.layout===layout);});
+  document.getElementById('lot-svg').innerHTML = LOT_LAYOUTS[layout].svg;
+  renderCarsOnMap();
+}
+
+function loadCars(){
+  gdb.collection('garage_cars').get().then(function(snapshot){
+    allCars=[];
+    snapshot.forEach(function(doc){ allCars.push(doc.data()); });
+    setLayout(activeLayout);
+    renderToybox();
+  });
+}
+
+function renderCarsOnMap(){
+  var map=document.getElementById('lot-map');
+  var existing=map.querySelectorAll('.car-sprite');
+  existing.forEach(function(e){e.remove();});
+  allCars.filter(function(c){return c.currentLayout===activeLayout;}).forEach(function(car){
+    var el=document.createElement('div');
+    el.className='car-sprite';
+    el.style.backgroundImage='url('+car.imageUrl+')';
+    el.style.left=car.posX+'%';
+    el.style.top=car.posY+'%';
+    el.dataset.id=car.id;
+    attachDrag(el, car);
+    map.appendChild(el);
+  });
+}
+
+function renderToybox(){
+  var row=document.getElementById('toybox-row');
+  row.innerHTML='';
+  allCars.forEach(function(car){
+    var el=document.createElement('div');
+    el.className='toybox-item';
+    el.style.backgroundImage='url('+car.imageUrl+')';
+    el.onclick=function(){ spawnCar(car); };
+    row.appendChild(el);
+  });
+}
+
+function toggleToybox(){
+  var box=document.getElementById('toybox-tab');
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+}
+
+function spawnCar(car){
+  car.currentLayout=activeLayout;
+  var slot=LOT_LAYOUTS[activeLayout].slots[Math.floor(Math.random()*LOT_LAYOUTS[activeLayout].slots.length)];
+  car.posX=slot[0];
+  car.posY=slot[1];
+  gdb.collection('garage_cars').doc(car.id).update({
+    currentLayout:car.currentLayout, posX:car.posX, posY:car.posY
+  });
+  renderCarsOnMap();
+}
+
+// ===== TOUCH-FRIENDLY DRAG (Pointer Events, no external lib) =====
+function attachDrag(el, car){
+  var map=document.getElementById('lot-map');
+  var dragging=false;
+
+  el.addEventListener('pointerdown', function(e){
+    dragging=true;
+    el.classList.add('dragging');
+    el.setPointerCapture(e.pointerId);
+  });
+
+  el.addEventListener('pointermove', function(e){
+    if(!dragging)return;
+    var mapRect=map.getBoundingClientRect();
+    var xPct=((e.clientX-mapRect.left)/mapRect.width)*100;
+    var yPct=((e.clientY-mapRect.top)/mapRect.height)*100;
+    xPct=Math.max(2,Math.min(98,xPct));
+    yPct=Math.max(2,Math.min(98,yPct));
+    el.style.left=xPct+'%';
+    el.style.top=yPct+'%';
+  });
+
+  function endDrag(e){
+    if(!dragging)return;
+    dragging=false;
+    el.classList.remove('dragging');
+    var curX=parseFloat(el.style.left);
+    var curY=parseFloat(el.style.top);
+    var snap=nearestSlot(activeLayout, curX, curY);
+    if(snap){
+      el.style.left=snap[0]+'%';
+      el.style.top=snap[1]+'%';
+      car.posX=snap[0];car.posY=snap[1];
+    }else{
+      car.posX=curX;car.posY=curY;
+    }
+    gdb.collection('garage_cars').doc(car.id).update({posX:car.posX, posY:car.posY});
+  }
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+}
+</script>
+</body>
+</html>
