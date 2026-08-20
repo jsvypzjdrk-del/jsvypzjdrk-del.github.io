@@ -101,56 +101,14 @@ h1 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 2px; 
 
 <div id="loading" style="text-align:center; color:#888; margin-top:60px; font-size:15px;">Loading...</div>
 
-<div id="profile-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 style="color:#C9A876;">Who's this?</h2>
-  <div id="profile-list" style="display:flex; flex-wrap:wrap; justify-content:center; margin-top:16px;"></div>
-  <div style="margin-top:30px;"><span onclick="showAdminLogin()" style="color:#9c8560; cursor:pointer; text-decoration:underline; font-size:13px;">Admin</span></div>
-</div>
-
-<div id="new-profile-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 style="color:#C9A876;">Create Parent Profile</h2>
-  <input id="new-profile-name" type="text" placeholder="Your name" style="font-size:16px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
-  <input id="new-pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----" style="font-size:24px; letter-spacing:8px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
-  <div id="new-profile-error" style="color:#c92a2a; font-size:13px; min-height:18px;"></div>
-  <button onclick="createParentProfile()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#C9A876; color:#0A0D14; border-radius:8px; cursor:pointer; margin-top:8px;">Create Profile</button>
-  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#9c8560; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
-</div>
-
-<div id="pin-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 id="pin-heading" style="color:#C9A876;">Enter PIN</h2>
-  <input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----" style="font-size:24px; letter-spacing:8px; text-align:center; width:180px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:12px auto; display:block; background:#e8e5de;">
-  <div id="pin-error" style="color:#c92a2a; font-size:13px; min-height:18px;"></div>
-  <button onclick="submitPin()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#C9A876; color:#0A0D14; border-radius:8px; cursor:pointer; margin-top:6px;">Unlock</button>
-  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#9c8560; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
-</div>
-
-<div id="admin-login-screen" style="text-align:center; padding-top:40px; display:none;">
-  <h2 id="admin-login-heading" style="color:#C9A876;">Admin Login</h2>
-  <div id="admin-security-block" style="display:none;">
-    <p id="admin-security-question" style="color:#9c8560; font-size:14px;"></p>
-    <input id="admin-security-input" type="text" placeholder="Answer" style="font-size:16px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
-  </div>
-  <input id="admin-pw-input" type="password" placeholder="Admin password" style="font-size:16px; text-align:center; width:220px; padding:10px; border:1px solid #bbb; border-radius:8px; margin:8px auto; display:block; background:#e8e5de;">
-  <div id="admin-login-error" style="color:#c92a2a; font-size:13px; min-height:18px;"></div>
-  <button onclick="submitAdminLogin()" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#C9A876; color:#0A0D14; border-radius:8px; cursor:pointer; margin-top:6px;">Log In</button>
-  <div style="margin-top:10px;"><span onclick="backToProfiles()" style="color:#9c8560; cursor:pointer; text-decoration:underline; font-size:13px;">&larr; Back</span></div>
-</div>
-
-<div id="admin-panel-screen" style="display:none;">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-    <h2 style="color:#C9A876; margin:0;">Admin Panel</h2>
-    <span onclick="backToProfiles()" style="color:#9c8560; cursor:pointer; text-decoration:underline; font-size:13px;">Log Out</span>
-  </div>
-  <div id="admin-list"></div>
+<div id="not-logged-in" style="text-align:center; padding-top:60px; display:none;">
+  <p style="color:#9c8560;">You need to log in first.</p>
+  <a href="index.html" style="padding:10px 26px; font-size:15px; font-weight:700; border:none; background:#C9A876; color:#0A0D14; border-radius:8px; cursor:pointer; text-decoration:none; display:inline-block;">Go to home page</a>
 </div>
 
 <div id="app-content" style="display:none;">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-  <span id="parent-name-label" style="font-weight:700; color:#C9A876; font-size:14px;"></span>
-  <div>
-    <span onclick="logOut()" style="color:#9c8560; cursor:pointer; text-decoration:underline; font-size:12px; margin-right:12px;">Log Out</span>
-    <span onclick="deleteParentAccount()" style="color:#c92a2a; cursor:pointer; text-decoration:underline; font-size:12px;">Delete Account</span>
-  </div>
+  <span id="account-name-label" style="font-weight:700; color:#C9A876; font-size:14px;"></span>
 </div>
 
 <div class="eink-frame">
@@ -285,20 +243,26 @@ function newKidLists(age){
   const c=getStartConfig(age);
   return{
     words:c.wb>=0?buildUpTo(WORD_BATCHES,c.wb):[],
-    letters:buildUpTo(LETTER_BATCHES,c.lb),
+    letters:LETTER_BATCHES.flat().map(l=>({word:l,status:null})),
     numbers:NUMBER_BATCHES.flat().map(n=>({word:n,status:null})),
     sentences:[],
     months:ALL_MONTHS.map(m=>({word:m,status:null})),
     days:ALL_DAYS.map(d=>({word:d,status:null})),
-    letterBatch:c.lb,numberBatch:NUMBER_BATCHES.length-1,wordBatch:c.wb,
+    letterBatch:LETTER_BATCHES.length-1,numberBatch:NUMBER_BATCHES.length-1,wordBatch:c.wb,
     custom:{},hiddenModes:[]
   };
 }
 
+function mergeDefaults(list,canonical){
+  const byWord={};
+  (list||[]).forEach(item=>{byWord[item.word]=item;});
+  const merged=canonical.map(w=>byWord[w]?byWord[w]:{word:w,status:null});
+  const extras=(list||[]).filter(item=>canonical.indexOf(item.word)===-1);
+  return merged.concat(extras);
+}
+
 let state={kids:[],activeKid:null};
 let mode='words',disp='whole',clockDisp='digital',idx=0,spellIdx=0,testAll=false,speaking=false,clockTimer=null,pendingUnlock=null;
-let currentParent=null;
-let parentData={};
 
 var firebaseConfig = {
   apiKey: "AIzaSyDNOrwbMD3zcl_G-VDH1LfEe0Kv4bILLN8",
@@ -311,229 +275,34 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var lsdb = firebase.firestore();
 
-function sha256(text){
-  var msgBuffer=new TextEncoder().encode(text);
-  return crypto.subtle.digest('SHA-256',msgBuffer).then(function(hashBuffer){
-    var hashArray=Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-  });
-}
+// ====== SHARED MILLSCAT ACCOUNT LOGIN ======
+var currentAccountId = localStorage.getItem('millscat_account_id');
+var currentAccountName = localStorage.getItem('millscat_account_name');
 
-// ====== PARENT PROFILES ======
-function loadParentProfiles(){
-  document.getElementById('loading').style.display='block';
-  document.getElementById('profile-screen').style.display='none';
-  document.getElementById('app-content').style.display='none';
-  document.getElementById('pin-screen').style.display='none';
-  document.getElementById('new-profile-screen').style.display='none';
-  document.getElementById('admin-login-screen').style.display='none';
-  document.getElementById('admin-panel-screen').style.display='none';
-  currentParent=null;
-
-  lsdb.collection('learnscreen_parents').get().then(function(snapshot){
-    parentData={};
-    var listEl=document.getElementById('profile-list');
-    listEl.innerHTML='';
-    snapshot.forEach(function(doc){
-      var d=doc.data();
-      parentData[doc.id]=d;
-      var btn=document.createElement('div');
-      btn.style.cssText='display:inline-block;width:150px;margin:10px;padding:20px 10px;background:#e8e5de;border:1px solid #ccc;border-radius:12px;cursor:pointer;text-align:center;';
-      btn.innerHTML='<div style="font-size:34px;">👤</div><div style="font-weight:700;font-size:15px;color:#111;margin-top:6px;">'+d.name+'</div>';
-      btn.onclick=(function(id){return function(){selectParentProfile(id);};})(doc.id);
-      listEl.appendChild(btn);
-    });
-    var newBtn=document.createElement('div');
-    newBtn.style.cssText='display:inline-block;width:150px;margin:10px;padding:20px 10px;background:#f0ede6;border:2px dashed #bbb;border-radius:12px;cursor:pointer;text-align:center;';
-    newBtn.innerHTML='<div style="font-size:34px;color:#999;">+</div><div style="font-weight:700;font-size:15px;color:#777;margin-top:6px;">New Profile</div>';
-    newBtn.onclick=showNewParentForm;
-    listEl.appendChild(newBtn);
-
+function initLearnScreen(){
+  if(!currentAccountId){
     document.getElementById('loading').style.display='none';
-    document.getElementById('profile-screen').style.display='block';
-  });
-}
-
-function showNewParentForm(){
-  document.getElementById('profile-screen').style.display='none';
-  document.getElementById('new-profile-name').value='';
-  document.getElementById('new-pin-input').value='';
-  document.getElementById('new-profile-error').textContent='';
-  document.getElementById('new-profile-screen').style.display='block';
-}
-
-function createParentProfile(){
-  var name=document.getElementById('new-profile-name').value.trim();
-  var pin=document.getElementById('new-pin-input').value.trim();
-  if(!name){document.getElementById('new-profile-error').textContent='Please enter a name.';return;}
-  if(pin.length!==4||isNaN(pin)){document.getElementById('new-profile-error').textContent='PIN must be 4 digits.';return;}
-
-  var newId='parent_'+Date.now();
-  sha256(pin).then(function(pinHash){
-    var newData={name:name,pin:pinHash};
-    lsdb.collection('learnscreen_parents').doc(newId).set(newData).then(function(){
-      parentData[newId]=newData;
-      currentParent=newId;
-      document.getElementById('new-profile-screen').style.display='none';
-      enterParentApp();
-    });
-  });
-}
-
-function selectParentProfile(id){
-  currentParent=id;
-  document.getElementById('profile-screen').style.display='none';
-  var data=parentData[id];
-  document.getElementById('pin-heading').textContent='Enter PIN for '+data.name;
-  document.getElementById('pin-input').value='';
-  document.getElementById('pin-error').textContent='';
-  document.getElementById('pin-screen').style.display='block';
-  document.getElementById('pin-input').focus();
-}
-
-function submitPin(){
-  var entered=document.getElementById('pin-input').value.trim();
-  if(entered.length!==4||isNaN(entered)){document.getElementById('pin-error').textContent='Enter a 4-digit PIN.';return;}
-  var data=parentData[currentParent];
-  sha256(entered).then(function(hash){
-    if(hash===data.pin){enterParentApp();}
-    else{document.getElementById('pin-error').textContent='Wrong PIN. Try again.';}
-  });
-}
-
-function enterParentApp(){
-  document.getElementById('pin-screen').style.display='none';
+    document.getElementById('not-logged-in').style.display='block';
+    return;
+  }
+  document.getElementById('account-name-label').textContent = currentAccountName + "'s LearnScreen";
   document.getElementById('app-content').style.display='block';
-  var data=parentData[currentParent];
-  document.getElementById('parent-name-label').textContent=data.name+"'s LearnScreen";
   loadKids();
 }
 
-function backToProfiles(){
-  loadParentProfiles();
-}
-
-function logOut(){
-  backToProfiles();
-}
-
-function deleteParentAccount(){
-  var data=parentData[currentParent];
-  var confirmed=confirm('Delete "'+data.name+'" and ALL kids/progress under this profile? This cannot be undone.');
-  if(!confirmed)return;
-  var typedPin=prompt('Type your PIN one more time to confirm deletion:');
-  if(typedPin===null)return;
-  sha256(typedPin.trim()).then(function(hash){
-    if(hash!==data.pin){alert('PIN did not match. Account not deleted.');return;}
-    lsdb.collection('learnscreen_kids').where('parentId','==',currentParent).get().then(function(snapshot){
-      var batchDeletes=[];
-      snapshot.forEach(function(doc){batchDeletes.push(doc.ref.delete());});
-      Promise.all(batchDeletes).then(function(){
-        lsdb.collection('learnscreen_parents').doc(currentParent).delete().then(function(){
-          alert('Account deleted.');
-          backToProfiles();
-        });
-      });
-    });
-  });
-}
-
-// ====== ADMIN ======
-var ADMIN_SECURITY_QUESTION="What city were you born in?";
-var ADMIN_SECURITY_HASH="eda0d7917034b9735712ba752d82b78221e4f6a172ebccc8031494935c6ca36c";
-
-function showAdminLogin(){
-  document.getElementById('profile-screen').style.display='none';
-  document.getElementById('admin-pw-input').value='';
-  document.getElementById('admin-security-input').value='';
-  document.getElementById('admin-login-error').textContent='';
-
-  lsdb.collection('admin').doc('learnscreen').get().then(function(doc){
-    if(!doc.exists){
-      document.getElementById('admin-login-heading').textContent='Set Up Admin Access';
-      document.getElementById('admin-security-question').textContent=ADMIN_SECURITY_QUESTION;
-      document.getElementById('admin-security-block').style.display='block';
-      document.getElementById('admin-pw-input').placeholder='Create admin password';
-    }else{
-      document.getElementById('admin-login-heading').textContent='Admin Login';
-      document.getElementById('admin-security-block').style.display='none';
-      document.getElementById('admin-pw-input').placeholder='Admin password';
-    }
-    document.getElementById('admin-login-screen').style.display='block';
-  });
-}
-
-function submitAdminLogin(){
-  var entered=document.getElementById('admin-pw-input').value;
-  if(!entered){document.getElementById('admin-login-error').textContent='Enter a password.';return;}
-
-  lsdb.collection('admin').doc('learnscreen').get().then(function(doc){
-    if(!doc.exists){
-      var answer=document.getElementById('admin-security-input').value.trim().toLowerCase();
-      if(!answer){document.getElementById('admin-login-error').textContent='Answer the security question.';return;}
-      sha256(answer).then(function(hash){
-        if(hash!==ADMIN_SECURITY_HASH){document.getElementById('admin-login-error').textContent='Incorrect answer.';return;}
-        sha256(entered).then(function(pwHash){
-          lsdb.collection('admin').doc('learnscreen').set({password:pwHash}).then(function(){
-            enterAdminPanel();
-          });
-        });
-      });
-    }else{
-      sha256(entered).then(function(pwHash){
-        if(pwHash===doc.data().password){enterAdminPanel();}
-        else{document.getElementById('admin-login-error').textContent='Wrong password.';}
-      });
-    }
-  });
-}
-
-function enterAdminPanel(){
-  document.getElementById('admin-login-screen').style.display='none';
-  document.getElementById('admin-panel-screen').style.display='block';
-  renderAdminList();
-}
-
-function renderAdminList(){
-  lsdb.collection('learnscreen_parents').get().then(function(snapshot){
-    var listEl=document.getElementById('admin-list');
-    listEl.innerHTML='';
-    if(snapshot.empty){listEl.innerHTML='<div style="text-align:center;color:#888;">No profiles exist yet.</div>';return;}
-
-    snapshot.forEach(function(doc){
-      var data=doc.data();
-      var row=document.createElement('div');
-      row.style.cssText='background:#e8e5de;border:1px solid #ccc;border-radius:12px;padding:14px;margin-bottom:10px;';
-      row.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;">'+
-        '<span style="font-weight:700;color:#111;">'+data.name+'</span>'+
-        '<span style="color:#c92a2a;cursor:pointer;text-decoration:underline;font-size:13px;">Delete</span>'+
-        '</div>';
-      row.querySelector('span:last-child').onclick=(function(id,name){
-        return function(){
-          if(confirm('Delete profile "'+name+'" and ALL kids/progress under it? This cannot be undone.')){
-            lsdb.collection('learnscreen_kids').where('parentId','==',id).get().then(function(snap){
-              var dels=[];
-              snap.forEach(function(d){dels.push(d.ref.delete());});
-              Promise.all(dels).then(function(){
-                lsdb.collection('learnscreen_parents').doc(id).delete().then(renderAdminList);
-              });
-            });
-          }
-        };
-      })(doc.id,data.name);
-      listEl.appendChild(row);
-    });
-  });
-}
-
-// ====== KIDS (existing functionality, now scoped to current parent) ======
+// ====== KIDS (existing functionality, scoped to the logged-in account) ======
 function loadKids(){
-  lsdb.collection('learnscreen_kids').where('parentId','==',currentParent).get().then(function(snapshot){
+  lsdb.collection('learnscreen_kids').where('accountId','==',currentAccountId).get().then(function(snapshot){
     state.kids=[];
     snapshot.forEach(function(doc){
       var d=doc.data();
       if(!d.lists.custom) d.lists.custom={};
       if(!d.lists.hiddenModes) d.lists.hiddenModes=[];
+      var hidden=d.lists.hiddenModes;
+      if(hidden.indexOf('letters')===-1) d.lists.letters=mergeDefaults(d.lists.letters,LETTER_BATCHES.flat());
+      if(hidden.indexOf('numbers')===-1) d.lists.numbers=mergeDefaults(d.lists.numbers,NUMBER_BATCHES.flat());
+      if(hidden.indexOf('months')===-1) d.lists.months=mergeDefaults(d.lists.months,ALL_MONTHS);
+      if(hidden.indexOf('days')===-1) d.lists.days=mergeDefaults(d.lists.days,ALL_DAYS);
       state.kids.push({id:doc.id,name:d.nickname,age:d.age,lists:d.lists});
     });
     if(state.kids.length>0 && !state.activeKid) state.activeKid=state.kids[0].name;
@@ -543,7 +312,7 @@ function loadKids(){
 
 function save(){
   const kid=getKid();if(!kid)return;
-  lsdb.collection('learnscreen_kids').doc(kid.id).set({parentId:currentParent,nickname:kid.name,age:kid.age,lists:kid.lists});
+  lsdb.collection('learnscreen_kids').doc(kid.id).set({accountId:currentAccountId,nickname:kid.name,age:kid.age,lists:kid.lists});
 }
 function getKid(){return state.kids.find(k=>k.name===state.activeKid);}
 function getList(){
@@ -744,7 +513,7 @@ function confirmAddKid(){
   const newId='k_'+Date.now();
   const kid={id:newId,name,age,lists:newKidLists(age)};
   state.kids.push(kid);state.activeKid=name;idx=0;spellIdx=0;
-  lsdb.collection('learnscreen_kids').doc(newId).set({parentId:currentParent,nickname:name,age:age,lists:kid.lists}).then(function(){
+  lsdb.collection('learnscreen_kids').doc(newId).set({accountId:currentAccountId,nickname:name,age:age,lists:kid.lists}).then(function(){
     closeModal();renderAll();
   });
 }
@@ -753,7 +522,7 @@ document.getElementById('kid-age-input').addEventListener('keydown',e=>{if(e.key
 document.getElementById('mode-grid').addEventListener('click',e=>{const btn=e.target.closest('.mode-btn');if(!btn||!btn.dataset.mode)return;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');mode=btn.dataset.mode;idx=0;spellIdx=0;if(mode!=='clock')stopClock();pendingUnlock=null;document.getElementById('mastery-banner').style.display='none';renderAll();});
 document.getElementById('disp-row').addEventListener('click',e=>{const btn=e.target.closest('.disp-btn');if(!btn)return;document.querySelectorAll('.disp-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');disp=btn.dataset.disp;spellIdx=0;renderEink();});
 document.getElementById('clock-disp-row').addEventListener('click',e=>{const btn=e.target.closest('[data-cdisp]');if(!btn)return;document.querySelectorAll('[data-cdisp]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');clockDisp=btn.dataset.cdisp;renderClock();});
-loadParentProfiles();
+initLearnScreen();
 </script>
 </body>
 </html>

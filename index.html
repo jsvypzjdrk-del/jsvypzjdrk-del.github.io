@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Millscat</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { height:100%; margin:0; }
@@ -16,23 +18,59 @@
   }
   #topbar { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
   #topbar .brand-text { font-size: 18px; letter-spacing: 0.1em; color: #C9A876; }
+  #topbar .acct-status { margin-left: auto; font-size: 12px; color: #9c8560; }
+  #topbar .acct-status a { color: #C9A876; text-decoration: underline; cursor: pointer; margin-left: 10px; }
   #main-content { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 16px; }
-  h1 {
-    font-size: 26px; margin: 14px 0 2px; color: #C9A876;
-    letter-spacing: 0.14em; font-weight: normal;
-  }
-  .tagline { font-size: 12px; color: #9c8560; letter-spacing: 0.08em; margin-bottom: 34px; }
+  h1 { font-size: 26px; margin: 14px 0 2px; color: #C9A876; letter-spacing: 0.14em; font-weight: normal; }
+  .tagline { font-size: 12px; color: #9c8560; letter-spacing: 0.08em; margin-bottom: 30px; }
+
   .cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; max-width: 700px; }
   .card {
     background: #14181f; color: #C9A876; width: 220px; padding: 26px 18px;
     border: 1px solid #3a3226; border-radius: 10px; text-decoration: none; display: block;
     font-size: 17px; font-weight: normal; letter-spacing: 0.03em;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, opacity 0.15s;
   }
   .card:hover { border-color: #C9A876; }
+  .card.locked { opacity: 0.4; pointer-events: none; }
   .card .icon-wrap { margin-bottom: 12px; }
   .card .name { display:block; }
   .card .sub { display:block; font-size: 11px; color: #9c8560; margin-top: 4px; letter-spacing: 0.05em; }
+
+  #login-panel { width: 100%; max-width: 360px; margin-bottom: 30px; text-align: center; }
+  #login-panel h2 { font-size: 18px; color: #C9A876; font-weight: normal; margin: 0 0 4px; }
+  #login-panel .hint { font-size: 12px; color: #9c8560; margin-bottom: 16px; }
+  #account-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px; }
+  .acct-btn {
+    width: 120px; padding: 16px 8px; background: #14181f; border: 1px solid #3a3226; border-radius: 10px;
+    cursor: pointer; text-align: center;
+  }
+  .acct-btn .initial { font-size: 24px; }
+  .acct-btn .aname { font-size: 13px; font-weight: bold; margin-top: 4px; color: #C9A876; }
+  .new-acct-btn {
+    width: 120px; padding: 16px 8px; background: transparent; border: 1.5px dashed #3a3226; border-radius: 10px;
+    cursor: pointer; text-align: center; color: #9c8560;
+  }
+  input {
+    font-size: 16px; text-align: center; width: 220px; padding: 10px; border: 1px solid #3a3226;
+    border-radius: 8px; margin: 8px auto; display: block; background: #14181f; color: #C9A876;
+  }
+  input::placeholder { color: #5c5040; }
+  .pin-input { letter-spacing: 8px; }
+  .err { color: #c92a2a; font-size: 13px; min-height: 18px; }
+  .primary-btn {
+    padding: 10px 26px; font-size: 15px; font-weight: bold; border: none; background: #C9A876;
+    color: #0A0D14; border-radius: 8px; cursor: pointer; margin-top: 6px;
+  }
+  .link-btn { color: #9c8560; cursor: pointer; text-decoration: underline; font-size: 13px; background:none; border:none; }
+
+  #admin-panel-screen { width: 100%; max-width: 420px; }
+  #admin-panel-screen h2 { color: #C9A876; font-weight: normal; }
+  .admin-row {
+    background: #14181f; border: 1px solid #3a3226; border-radius: 10px; padding: 12px 16px;
+    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .admin-row .del { color: #c92a2a; cursor: pointer; text-decoration: underline; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -40,18 +78,66 @@
 <div id="topbar">
   <img src="logo.png" alt="Millscat" style="height:30px; width:auto;">
   <span class="brand-text">MILLSCAT</span>
+  <span class="acct-status" id="acct-status"></span>
 </div>
 
 <div id="main-content">
 <div class="logo-wrap">
-<img src="logo.png" alt="Millscat" style="height:110px; width:auto;">
+<img src="logo.png" alt="Millscat" style="height:90px; width:auto;">
 </div>
 <h1>MILLSCAT</h1>
 <div class="tagline">FAMILY APPS</div>
 
+<div id="login-panel">
+  <div id="loading" style="color:#9c8560; font-size:13px;">Loading...</div>
+
+  <div id="picker-screen" style="display:none;">
+    <h2>Who's this?</h2>
+    <p class="hint">Log in once to unlock the apps below.</p>
+    <div id="account-list"></div>
+    <div><span class="link-btn" onclick="showAdminLogin()">Admin</span></div>
+  </div>
+
+  <div id="new-account-screen" style="display:none;">
+    <h2>Create your account</h2>
+    <input id="new-name-input" type="text" placeholder="Your name">
+    <input id="new-pin-input" class="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----">
+    <div class="err" id="new-acct-err"></div>
+    <button class="primary-btn" onclick="createAccount()">Create account</button>
+    <div style="margin-top:8px;"><span class="link-btn" onclick="showPicker()">&larr; Back</span></div>
+  </div>
+
+  <div id="pin-screen" style="display:none;">
+    <h2 id="pin-heading">Enter PIN</h2>
+    <input id="pin-input" class="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----">
+    <div class="err" id="pin-err"></div>
+    <button class="primary-btn" onclick="submitPin()">Log in</button>
+    <div style="margin-top:8px;"><span class="link-btn" onclick="showPicker()">&larr; Back</span></div>
+  </div>
+
+  <div id="admin-login-screen" style="display:none;">
+    <h2 id="admin-login-heading">Admin login</h2>
+    <div id="admin-security-block" style="display:none;">
+      <p style="font-size:13px; color:#9c8560;" id="admin-security-question"></p>
+      <input id="admin-security-input" type="text" placeholder="Answer">
+    </div>
+    <input id="admin-pw-input" type="password" placeholder="Admin password">
+    <div class="err" id="admin-login-err"></div>
+    <button class="primary-btn" onclick="submitAdminLogin()">Log in</button>
+    <div style="margin-top:8px;"><span class="link-btn" onclick="showPicker()">&larr; Back</span></div>
+  </div>
+
+  <div id="admin-panel-screen" style="display:none;">
+    <h2>Admin panel</h2>
+    <p class="hint">Deleting an account removes all of its data across every app.</p>
+    <div id="admin-list"></div>
+    <div style="margin-top:10px;"><span class="link-btn" onclick="showPicker()">&larr; Back</span></div>
+  </div>
+</div>
+
 <div class="cards">
 
-<a class="card" href="waitress_app.html">
+<a class="card locked" id="card-waitress" href="waitress_app.html">
   <span class="icon-wrap">
     <svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="none" stroke="#C9A876" stroke-width="1"/><path d="M11 22 V10 M11 10 C11 13 14 13 14 10 M23 10 V22 M17 10 C17 14 20 14 20 10 M20 14 V22" stroke="#C9A876" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </span>
@@ -59,7 +145,7 @@
   <span class="sub">order taking game</span>
 </a>
 
-<a class="card" href="payment_tracker.html">
+<a class="card locked" id="card-payment" href="payment_tracker.html">
   <span class="icon-wrap">
     <svg width="34" height="34" viewBox="0 0 34 34"><rect x="4" y="9" width="26" height="17" rx="2" fill="none" stroke="#C9A876" stroke-width="1.3"/><line x1="4" y1="14" x2="30" y2="14" stroke="#C9A876" stroke-width="1.3"/><line x1="8" y1="20" x2="16" y2="20" stroke="#C9A876" stroke-width="1.3" stroke-linecap="round"/></svg>
   </span>
@@ -67,12 +153,20 @@
   <span class="sub">what's owed, what's paid</span>
 </a>
 
-<a class="card" href="learnscreen.html">
+<a class="card locked" id="card-learn" href="learnscreen.html">
   <span class="icon-wrap">
     <svg width="34" height="34" viewBox="0 0 34 34"><path d="M17 8 C13 5 7 5 4 7 V25 C7 23 13 23 17 26 C21 23 27 23 30 25 V7 C27 5 21 5 17 8 Z" fill="none" stroke="#C9A876" stroke-width="1.3" stroke-linejoin="round"/><line x1="17" y1="8" x2="17" y2="26" stroke="#C9A876" stroke-width="1.3"/></svg>
   </span>
   <span class="name">LearnScreen</span>
   <span class="sub">letters, words, numbers</span>
+</a>
+
+<a class="card locked" id="card-sitter" href="sittertracker.html">
+  <span class="icon-wrap">
+    <svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="none" stroke="#C9A876" stroke-width="1.3"/><path d="M17 9 V17 L22 20" stroke="#C9A876" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span>
+  <span class="name">Sitter Tracker</span>
+  <span class="sub">hours and pay</span>
 </a>
 
 <a class="card" href="garage.html">
@@ -85,6 +179,227 @@
 
 </div>
 </div>
+
+<script>
+var firebaseConfig = {
+  apiKey: "AIzaSyDNOrwbMD3zcl_G-VDH1LfEe0Kv4bILLN8",
+  authDomain: "millscat-tracker.firebaseapp.com",
+  projectId: "millscat-tracker",
+  storageBucket: "millscat-tracker.firebasestorage.app",
+  messagingSenderId: "718174074085",
+  appId: "1:718174074085:web:8927f197e2fbec9239d00c"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+function sha256(text){
+  var msgBuffer=new TextEncoder().encode(text);
+  return crypto.subtle.digest('SHA-256',msgBuffer).then(function(hashBuffer){
+    var hashArray=Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  });
+}
+
+var accountsCache={};
+
+function unlockCards(){
+  ['card-waitress','card-payment','card-learn','card-sitter'].forEach(function(id){
+    document.getElementById(id).classList.remove('locked');
+  });
+}
+function lockCards(){
+  ['card-waitress','card-payment','card-learn','card-sitter'].forEach(function(id){
+    document.getElementById(id).classList.add('locked');
+  });
+}
+
+function refreshAcctStatus(){
+  var id=localStorage.getItem('millscat_account_id');
+  var name=localStorage.getItem('millscat_account_name');
+  var el=document.getElementById('acct-status');
+  if(id && name){
+    el.innerHTML='Logged in as '+name+' <a onclick="logOutAccount()">Log out</a>';
+    unlockCards();
+  }else{
+    el.textContent='Not logged in';
+    lockCards();
+  }
+}
+
+function logOutAccount(){
+  localStorage.removeItem('millscat_account_id');
+  localStorage.removeItem('millscat_account_name');
+  refreshAcctStatus();
+  showPicker();
+}
+
+function hideAllPanels(){
+  ['loading','picker-screen','new-account-screen','pin-screen','admin-login-screen','admin-panel-screen'].forEach(function(id){
+    document.getElementById(id).style.display='none';
+  });
+}
+
+function loadAccounts(){
+  hideAllPanels();
+  document.getElementById('loading').style.display='block';
+  db.collection('accounts').get().then(function(snapshot){
+    accountsCache={};
+    var listEl=document.getElementById('account-list');
+    listEl.innerHTML='';
+    snapshot.forEach(function(doc){
+      var d=doc.data();
+      accountsCache[doc.id]=d;
+      var btn=document.createElement('div');
+      btn.className='acct-btn';
+      btn.innerHTML='<div class="initial">'+String.fromCodePoint(0x1F464)+'</div><div class="aname">'+d.name+'</div>';
+      btn.onclick=(function(id){return function(){selectAccount(id);};})(doc.id);
+      listEl.appendChild(btn);
+    });
+    var newBtn=document.createElement('div');
+    newBtn.className='new-acct-btn';
+    newBtn.innerHTML='<div style="font-size:22px;">+</div><div style="font-size:12px;">New account</div>';
+    newBtn.onclick=function(){ hideAllPanels(); document.getElementById('new-account-screen').style.display='block'; };
+    listEl.appendChild(newBtn);
+
+    hideAllPanels();
+    document.getElementById('picker-screen').style.display='block';
+  });
+}
+
+function showPicker(){ loadAccounts(); }
+
+var pendingAccountId=null;
+function selectAccount(id){
+  pendingAccountId=id;
+  hideAllPanels();
+  document.getElementById('pin-heading').textContent='Enter PIN for '+accountsCache[id].name;
+  document.getElementById('pin-input').value='';
+  document.getElementById('pin-err').textContent='';
+  document.getElementById('pin-screen').style.display='block';
+  document.getElementById('pin-input').focus();
+}
+
+function submitPin(){
+  var entered=document.getElementById('pin-input').value.trim();
+  if(entered.length!==4||isNaN(entered)){document.getElementById('pin-err').textContent='Enter a 4-digit PIN.';return;}
+  var data=accountsCache[pendingAccountId];
+  sha256(entered).then(function(hash){
+    if(hash===data.pin){
+      localStorage.setItem('millscat_account_id',pendingAccountId);
+      localStorage.setItem('millscat_account_name',data.name);
+      refreshAcctStatus();
+      hideAllPanels();
+      document.getElementById('picker-screen').style.display='none';
+    }else{
+      document.getElementById('pin-err').textContent='Wrong PIN. Try again.';
+    }
+  });
+}
+
+function createAccount(){
+  var name=document.getElementById('new-name-input').value.trim();
+  var pin=document.getElementById('new-pin-input').value.trim();
+  if(!name){document.getElementById('new-acct-err').textContent='Enter a name.';return;}
+  if(pin.length!==4||isNaN(pin)){document.getElementById('new-acct-err').textContent='PIN must be 4 digits.';return;}
+  var id='acct_'+Date.now();
+  sha256(pin).then(function(hash){
+    db.collection('accounts').doc(id).set({name:name,pin:hash}).then(function(){
+      localStorage.setItem('millscat_account_id',id);
+      localStorage.setItem('millscat_account_name',name);
+      refreshAcctStatus();
+      hideAllPanels();
+    });
+  });
+}
+
+// ===== ADMIN =====
+var ADMIN_SECURITY_QUESTION="What city were you born in?";
+var ADMIN_SECURITY_HASH="eda0d7917034b9735712ba752d82b78221e4f6a172ebccc8031494935c6ca36c";
+
+function showAdminLogin(){
+  hideAllPanels();
+  document.getElementById('admin-pw-input').value='';
+  document.getElementById('admin-security-input').value='';
+  document.getElementById('admin-login-err').textContent='';
+  db.collection('admin').doc('shared').get().then(function(doc){
+    if(!doc.exists){
+      document.getElementById('admin-login-heading').textContent='Set up admin access';
+      document.getElementById('admin-security-question').textContent=ADMIN_SECURITY_QUESTION;
+      document.getElementById('admin-security-block').style.display='block';
+    }else{
+      document.getElementById('admin-login-heading').textContent='Admin login';
+      document.getElementById('admin-security-block').style.display='none';
+    }
+    document.getElementById('admin-login-screen').style.display='block';
+  });
+}
+
+function submitAdminLogin(){
+  var entered=document.getElementById('admin-pw-input').value;
+  if(!entered){document.getElementById('admin-login-err').textContent='Enter a password.';return;}
+  db.collection('admin').doc('shared').get().then(function(doc){
+    if(!doc.exists){
+      var answer=document.getElementById('admin-security-input').value.trim().toLowerCase();
+      if(!answer){document.getElementById('admin-login-err').textContent='Answer the security question.';return;}
+      sha256(answer).then(function(hash){
+        if(hash!==ADMIN_SECURITY_HASH){document.getElementById('admin-login-err').textContent='Incorrect answer.';return;}
+        sha256(entered).then(function(pwHash){
+          db.collection('admin').doc('shared').set({password:pwHash}).then(enterAdminPanel);
+        });
+      });
+    }else{
+      sha256(entered).then(function(pwHash){
+        if(pwHash===doc.data().password){enterAdminPanel();}
+        else{document.getElementById('admin-login-err').textContent='Wrong password.';}
+      });
+    }
+  });
+}
+
+function enterAdminPanel(){
+  hideAllPanels();
+  document.getElementById('admin-panel-screen').style.display='block';
+  renderAdminList();
+}
+
+function renderAdminList(){
+  db.collection('accounts').get().then(function(snapshot){
+    var listEl=document.getElementById('admin-list');
+    listEl.innerHTML='';
+    if(snapshot.empty){listEl.innerHTML='<p class="hint">No accounts exist yet.</p>';return;}
+    snapshot.forEach(function(doc){
+      var data=doc.data();
+      var row=document.createElement('div');
+      row.className='admin-row';
+      row.innerHTML='<span>'+data.name+'</span><span class="del">Delete</span>';
+      row.querySelector('.del').onclick=(function(id,name){
+        return function(){
+          if(!confirm('Delete account "'+name+'" and ALL its data across every app? This cannot be undone.'))return;
+          cascadeDeleteAccount(id).then(renderAdminList);
+        };
+      })(doc.id,data.name);
+      listEl.appendChild(row);
+    });
+  });
+}
+
+function cascadeDeleteAccount(accountId){
+  var collections=['payment_items','learnscreen_kids','sitter_weeks'];
+  var deletes=collections.map(function(coll){
+    return db.collection(coll).where('accountId','==',accountId).get().then(function(snap){
+      var d=[];
+      snap.forEach(function(doc){ d.push(doc.ref.delete()); });
+      return Promise.all(d);
+    });
+  });
+  return Promise.all(deletes).then(function(){
+    return db.collection('accounts').doc(accountId).delete();
+  });
+}
+
+refreshAcctStatus();
+loadAccounts();
+</script>
 
 </body>
 </html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sitter Tracker</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: Arial, sans-serif; background: #0A0D14; color: #c7ccd6; }
+  #titlebar { background: #0A0D14; color: #C9A876; padding: 14px 20px; font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+  #titlebar .logo-mark { flex-shrink: 0; }
+  #titlebar .brand-text { flex: 1; }
+  #titlebar a { color: #0A0D14; text-decoration: none; font-size: 14px; background: #C9A876; padding: 4px 10px; border-radius: 4px; }
+  #wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  #loading, #not-logged-in { text-align: center; padding-top: 60px; color: #9c8560; }
+  #not-logged-in .primary-btn { padding: 10px 26px; font-size: 15px; font-weight: bold; border: none; background: #C9A876; color: #0A0D14; border-radius: 8px; cursor: pointer; text-decoration:none; display:inline-block; }
+
+  #app-content { display: none; }
+
+  .section-label { font-size: 13px; font-weight: bold; color: #9c8560; text-transform: uppercase; letter-spacing: 0.06em; margin: 24px 0 8px; }
+  .section-label:first-child { margin-top: 0; }
+
+  #rate-row { display: flex; align-items: center; justify-content: space-between; background: #14181f; border: 1px solid #3a3226; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+  #rate-row .rate-label { font-size: 13px; color: #9c8560; }
+  #rate-row .rate-val { font-size: 18px; font-weight: bold; color: #C9A876; }
+  #rate-row button { background: none; border: 1px solid #3a3226; color: #C9A876; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+  .week-card {
+    background: #fffdf7; color: #0A0D14; border: 1px solid #ddd0b8; border-radius: 12px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .week-card.current { border: 2px solid #C9A876; }
+  .week-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .week-top .wlabel { font-size: 16px; font-weight: bold; }
+  .week-top .wrate { font-size: 12px; color: #9c8560; }
+  .day-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; margin: 12px 0; }
+  .day-cell { text-align: center; }
+  .day-cell label { font-size: 11px; color: #666; display: block; margin-bottom: 3px; }
+  .day-cell input {
+    width: 100%; padding: 8px 4px; font-size: 15px; text-align: center; border: 1px solid #ccc;
+    border-radius: 6px; background: #f7f3ea;
+  }
+  .week-totals { display: flex; justify-content: space-between; font-size: 14px; margin: 10px 0; flex-wrap: wrap; gap: 6px; }
+  .week-totals b { font-size: 17px; }
+  .paid-btn { width: 100%; padding: 12px; font-size: 15px; font-weight: bold; border: none; background: #1e7d32; color: #fff; border-radius: 8px; cursor: pointer; margin-top: 6px; }
+  .paid-badge { display: inline-block; background: #e1f0e6; color: #1e7d32; font-size: 12px; font-weight: bold; padding: 3px 10px; border-radius: 20px; }
+  .paid-date { font-size: 12px; color: #888; margin-top: 4px; }
+
+  #empty-unpaid, #empty-paid { color: #9c8560; font-size: 13px; padding: 10px 0; }
+</style>
+</head>
+<body>
+
+<div id="titlebar">
+  <span class="logo-mark"><img src="logo.png" alt="Millscat" style="height:26px; width:auto;"></span>
+  <span class="brand-text">Sitter Tracker</span>
+  <a href="index.html">&larr; Home</a>
+</div>
+
+<div id="wrap">
+
+  <div id="loading">Loading...</div>
+
+  <div id="not-logged-in" style="display:none;">
+    <p>You need to log in first.</p>
+    <a class="primary-btn" href="index.html">Go to home page</a>
+  </div>
+
+  <div id="app-content">
+
+    <div id="rate-row">
+      <div>
+        <div class="rate-label">Current rate</div>
+        <div class="rate-val" id="rate-display">$20.00 / hr</div>
+      </div>
+      <button onclick="editRate()">Change rate</button>
+    </div>
+
+    <div class="section-label">Current week</div>
+    <div id="current-week-wrap"></div>
+
+    <div class="section-label">Unpaid</div>
+    <div id="unpaid-wrap"></div>
+    <div id="empty-unpaid" style="display:none;">No unpaid weeks — all caught up.</div>
+
+    <div class="section-label">Paid</div>
+    <div id="paid-wrap"></div>
+    <div id="empty-paid" style="display:none;">Nothing archived yet.</div>
+
+  </div>
+</div>
+
+<script>
+var firebaseConfig = {
+  apiKey: "AIzaSyDNOrwbMD3zcl_G-VDH1LfEe0Kv4bILLN8",
+  authDomain: "millscat-tracker.firebaseapp.com",
+  projectId: "millscat-tracker",
+  storageBucket: "millscat-tracker.firebasestorage.app",
+  messagingSenderId: "718174074085",
+  appId: "1:718174074085:web:8927f197e2fbec9239d00c"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+var accountId = localStorage.getItem('millscat_account_id');
+var accountName = localStorage.getItem('millscat_account_name');
+var currentRate = 20;
+var weeks = [];
+var DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+var DAY_LABELS = {mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun'};
+
+function init(){
+  if(!accountId){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('not-logged-in').style.display='block';
+    return;
+  }
+  loadRate().then(function(){
+    return loadWeeks();
+  }).then(function(){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app-content').style.display='block';
+    render();
+  });
+}
+
+function loadRate(){
+  return db.collection('accounts').doc(accountId).get().then(function(doc){
+    var d=doc.data();
+    if(d && d.sitterRate) currentRate = d.sitterRate;
+  });
+}
+
+function editRate(){
+  var input = prompt('New hourly rate ($):', currentRate);
+  if(input===null) return;
+  var val = parseFloat(input);
+  if(isNaN(val) || val<=0){ alert('Enter a valid rate.'); return; }
+  currentRate = val;
+  db.collection('accounts').doc(accountId).update({sitterRate: val}).then(function(){
+    document.getElementById('rate-display').textContent = '$'+val.toFixed(2)+' / hr';
+    // update the current (unsaved-rate) week's displayed rate going forward
+    render();
+  });
+}
+
+// Monday-start week key, e.g. "2026-08-17"
+function getMonday(d){
+  d = new Date(d);
+  var day = d.getDay();
+  var diff = d.getDate() - day + (day===0 ? -6 : 1);
+  var monday = new Date(d.setDate(diff));
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function formatWeekLabel(mondayIso){
+  var start = new Date(mondayIso+'T00:00:00');
+  var end = new Date(start); end.setDate(end.getDate()+6);
+  var opts = {month:'short', day:'numeric'};
+  return start.toLocaleDateString('en-US', opts) + ' – ' + end.toLocaleDateString('en-US', opts) + ', ' + start.getFullYear();
+}
+
+function loadWeeks(){
+  return db.collection('sitter_weeks').where('accountId','==',accountId).get().then(function(snapshot){
+    weeks=[];
+    snapshot.forEach(function(doc){
+      var d=doc.data();
+      weeks.push({id:doc.id, weekStart:d.weekStart, days:d.days, rate:d.rate, paid:d.paid, paidAt:d.paidAt||null});
+    });
+  });
+}
+
+function weekTotalHours(w){
+  var total=0;
+  DAY_KEYS.forEach(function(k){ total += parseFloat(w.days[k])||0; });
+  return total;
+}
+function weekTotalPay(w){ return weekTotalHours(w) * (w.rate||currentRate); }
+
+function getOrCreateCurrentWeek(){
+  var mondayIso = isoDate(getMonday(new Date()));
+  var existing = weeks.find(function(w){ return w.weekStart===mondayIso; });
+  if(existing) return existing;
+  var fresh = {id:null, weekStart:mondayIso, days:{mon:0,tue:0,wed:0,thu:0,fri:0,sat:0,sun:0}, rate:currentRate, paid:false, paidAt:null};
+  return fresh;
+}
+
+function saveWeek(w){
+  var payload = {accountId:accountId, weekStart:w.weekStart, days:w.days, rate:w.rate, paid:w.paid, paidAt:w.paidAt};
+  if(w.id){
+    return db.collection('sitter_weeks').doc(w.id).set(payload);
+  }else{
+    return db.collection('sitter_weeks').add(payload).then(function(ref){ w.id=ref.id; weeks.push(w); });
+  }
+}
+
+function updateDayHours(w, dayKey, value){
+  var hrs = parseFloat(value);
+  if(isNaN(hrs)||hrs<0) hrs=0;
+  w.days[dayKey]=hrs;
+  saveWeek(w).then(render);
+}
+
+function markPaid(w){
+  if(!confirm('Mark this week as paid? It will move to the Paid archive.')) return;
+  w.paid=true;
+  w.paidAt=new Date().toISOString();
+  saveWeek(w).then(render);
+}
+
+function renderDayGrid(w, editable){
+  var html = '<div class="day-grid">';
+  DAY_KEYS.forEach(function(k){
+    var val = w.days[k]||0;
+    if(editable){
+      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label><input type="number" min="0" step="0.25" value="'+val+'" onchange="updateDayHoursFromInput(\''+w.id_or_new+'\',\''+k+'\',this.value)"></div>';
+    }else{
+      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label><div style="padding:8px 4px; font-size:15px;">'+val+'</div></div>';
+    }
+  });
+  html += '</div>';
+  return html;
+}
+
+var currentWeekRef = null;
+
+function render(){
+  currentWeekRef = getOrCreateCurrentWeek();
+  currentWeekRef.id_or_new = currentWeekRef.id || 'current';
+
+  var hours = weekTotalHours(currentWeekRef);
+  var pay = weekTotalPay(currentWeekRef);
+  var cwWrap = document.getElementById('current-week-wrap');
+  cwWrap.innerHTML =
+    '<div class="week-card current">'+
+      '<div class="week-top"><span class="wlabel">'+formatWeekLabel(currentWeekRef.weekStart)+'</span><span class="wrate">$'+(currentWeekRef.rate||currentRate).toFixed(2)+'/hr</span></div>'+
+      renderDayGrid(currentWeekRef, true)+
+      '<div class="week-totals"><span>Hours: <b>'+hours.toFixed(2)+'</b></span><span>Owed: <b>$'+pay.toFixed(2)+'</b></span></div>'+
+      '<button class="paid-btn" onclick="markPaidCurrent()">Mark as Paid</button>'+
+    '</div>';
+
+  var unpaidWeeks = weeks.filter(function(w){ return w.paid===false && w.weekStart!==currentWeekRef.weekStart; })
+                          .sort(function(a,b){ return b.weekStart.localeCompare(a.weekStart); });
+  var unpaidWrap = document.getElementById('unpaid-wrap');
+  unpaidWrap.innerHTML='';
+  document.getElementById('empty-unpaid').style.display = unpaidWeeks.length? 'none':'block';
+  unpaidWeeks.forEach(function(w){
+    w.id_or_new = w.id;
+    var h=weekTotalHours(w), p=weekTotalPay(w);
+    var card=document.createElement('div');
+    card.className='week-card';
+    card.innerHTML =
+      '<div class="week-top"><span class="wlabel">'+formatWeekLabel(w.weekStart)+'</span><span class="wrate">$'+w.rate.toFixed(2)+'/hr</span></div>'+
+      renderDayGrid(w, true)+
+      '<div class="week-totals"><span>Hours: <b>'+h.toFixed(2)+'</b></span><span>Owed: <b>$'+p.toFixed(2)+'</b></span></div>'+
+      '<button class="paid-btn">Mark as Paid</button>';
+    card.querySelector('.paid-btn').onclick=function(){ markPaid(w); };
+    unpaidWrap.appendChild(card);
+  });
+
+  var paidWeeks = weeks.filter(function(w){ return w.paid===true; })
+                        .sort(function(a,b){ return b.weekStart.localeCompare(a.weekStart); });
+  var paidWrap = document.getElementById('paid-wrap');
+  paidWrap.innerHTML='';
+  document.getElementById('empty-paid').style.display = paidWeeks.length? 'none':'block';
+  paidWeeks.forEach(function(w){
+    var h=weekTotalHours(w), p=weekTotalPay(w);
+    var card=document.createElement('div');
+    card.className='week-card';
+    var paidDateStr = w.paidAt ? new Date(w.paidAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    card.innerHTML =
+      '<div class="week-top"><span class="wlabel">'+formatWeekLabel(w.weekStart)+'</span><span class="wrate">$'+w.rate.toFixed(2)+'/hr</span></div>'+
+      renderDayGrid(w, false)+
+      '<div class="week-totals"><span>Hours: <b>'+h.toFixed(2)+'</b></span><span>Paid: <b>$'+p.toFixed(2)+'</b></span></div>'+
+      '<span class="paid-badge">Paid</span><div class="paid-date">'+paidDateStr+'</div>';
+    paidWrap.appendChild(card);
+  });
+}
+
+function updateDayHoursFromInput(idOrNew, dayKey, value){
+  var w = (idOrNew==='current') ? currentWeekRef : weeks.find(function(x){return x.id===idOrNew;});
+  updateDayHours(w, dayKey, value);
+}
+
+function markPaidCurrent(){ markPaid(currentWeekRef); }
+
+init();
+</script>
+</body>
+</html>
