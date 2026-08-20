@@ -137,7 +137,7 @@
 
 <div class="cards">
 
-<a class="card locked" id="card-waitress" href="waitress_app.html">
+<a class="card" id="card-waitress" href="waitress_app.html">
   <span class="icon-wrap">
     <svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="none" stroke="#C9A876" stroke-width="1"/><path d="M11 22 V10 M11 10 C11 13 14 13 14 10 M23 10 V22 M17 10 C17 14 20 14 20 10 M20 14 V22" stroke="#C9A876" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </span>
@@ -203,12 +203,12 @@ function sha256(text){
 var accountsCache={};
 
 function unlockCards(){
-  ['card-waitress','card-payment','card-learn','card-sitter'].forEach(function(id){
+  ['card-payment','card-learn','card-sitter'].forEach(function(id){
     document.getElementById(id).classList.remove('locked');
   });
 }
 function lockCards(){
-  ['card-waitress','card-payment','card-learn','card-sitter'].forEach(function(id){
+  ['card-payment','card-learn','card-sitter'].forEach(function(id){
     document.getElementById(id).classList.add('locked');
   });
 }
