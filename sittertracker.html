@@ -37,12 +37,12 @@
   .week-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   .week-top .wlabel { font-size: 16px; font-weight: bold; }
   .week-top .wrate { font-size: 12px; color: #9c8560; }
-  .day-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; margin: 12px 0; }
+  .day-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; margin: 12px 0; }
   .day-cell { text-align: center; }
-  .day-cell label { font-size: 11px; color: #666; display: block; margin-bottom: 3px; }
+  .day-cell label { font-size: 11px; color: #666; display: block; margin-bottom: 3px; font-weight: bold; }
   .day-cell input {
-    width: 100%; padding: 8px 4px; font-size: 15px; text-align: center; border: 1px solid #ccc;
-    border-radius: 6px; background: #f7f3ea;
+    width: 100%; padding: 5px 2px; font-size: 12px; text-align: center; border: 1px solid #ccc;
+    border-radius: 6px; background: #f7f3ea; margin-bottom: 3px;
   }
   .week-totals { display: flex; justify-content: space-between; font-size: 14px; margin: 10px 0; flex-wrap: wrap; gap: 6px; }
   .week-totals b { font-size: 17px; }
@@ -175,9 +175,18 @@ function loadWeeks(){
   });
 }
 
+function calcDayHours(day){
+  if(!day || !day.start || !day.end) return 0;
+  var sp=day.start.split(':'), ep=day.end.split(':');
+  var startMin=parseInt(sp[0])*60+parseInt(sp[1]);
+  var endMin=parseInt(ep[0])*60+parseInt(ep[1]);
+  var diff=endMin-startMin;
+  if(diff<0) diff=0;
+  return diff/60;
+}
 function weekTotalHours(w){
   var total=0;
-  DAY_KEYS.forEach(function(k){ total += parseFloat(w.days[k])||0; });
+  DAY_KEYS.forEach(function(k){ total += calcDayHours(w.days[k]); });
   return total;
 }
 function weekTotalPay(w){ return weekTotalHours(w) * (w.rate||currentRate); }
@@ -186,7 +195,10 @@ function getOrCreateCurrentWeek(){
   var mondayIso = isoDate(getMonday(new Date()));
   var existing = weeks.find(function(w){ return w.weekStart===mondayIso; });
   if(existing) return existing;
-  var fresh = {id:null, weekStart:mondayIso, days:{mon:0,tue:0,wed:0,thu:0,fri:0,sat:0,sun:0}, rate:currentRate, paid:false, paidAt:null};
+  var fresh = {id:null, weekStart:mondayIso, days:{
+    mon:{start:'15:00',end:''}, tue:{start:'15:00',end:''}, wed:{start:'15:00',end:''}, thu:{start:'15:00',end:''},
+    fri:{start:'15:00',end:''}, sat:{start:'',end:''}, sun:{start:'',end:''}
+  }, rate:currentRate, paid:false, paidAt:null};
   return fresh;
 }
 
@@ -199,10 +211,9 @@ function saveWeek(w){
   }
 }
 
-function updateDayHours(w, dayKey, value){
-  var hrs = parseFloat(value);
-  if(isNaN(hrs)||hrs<0) hrs=0;
-  w.days[dayKey]=hrs;
+function updateDayTime(w, dayKey, field, value){
+  if(!w.days[dayKey]) w.days[dayKey]={start:'',end:''};
+  w.days[dayKey][field]=value;
   saveWeek(w).then(render);
 }
 
@@ -213,14 +224,34 @@ function markPaid(w){
   saveWeek(w).then(render);
 }
 
+function fmtTime(t){
+  if(!t) return '';
+  var p=t.split(':'); var h=parseInt(p[0]), m=p[1];
+  var ampm = h>=12 ? 'PM':'AM';
+  var h12 = h%12; if(h12===0) h12=12;
+  return h12+':'+m+' '+ampm;
+}
+
 function renderDayGrid(w, editable){
+  var rate = w.rate||currentRate;
   var html = '<div class="day-grid">';
   DAY_KEYS.forEach(function(k){
-    var val = w.days[k]||0;
+    var day = w.days[k]||{start:'',end:''};
+    var hrs = calcDayHours(day);
+    var pay = hrs*rate;
     if(editable){
-      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label><input type="number" min="0" step="0.25" value="'+val+'" onchange="updateDayHoursFromInput(\''+w.id_or_new+'\',\''+k+'\',this.value)"></div>';
+      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label>'+
+        '<input type="time" value="'+(day.start||'')+'" onchange="updateDayTimeFromInput(\''+w.id_or_new+'\',\''+k+'\',\'start\',this.value)" style="margin-bottom:4px;">'+
+        '<input type="time" value="'+(day.end||'')+'" onchange="updateDayTimeFromInput(\''+w.id_or_new+'\',\''+k+'\',\'end\',this.value)">'+
+        '<div style="font-size:11px; color:#666; margin-top:3px;">'+hrs.toFixed(2)+'h</div>'+
+        '<div style="font-size:12px; font-weight:bold; color:#1e7d32;">$'+pay.toFixed(2)+'</div>'+
+      '</div>';
     }else{
-      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label><div style="padding:8px 4px; font-size:15px;">'+val+'</div></div>';
+      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label>'+
+        (day.start&&day.end ? '<div style="font-size:10px; color:#888;">'+fmtTime(day.start)+'&ndash;'+fmtTime(day.end)+'</div>' : '<div style="font-size:10px; color:#ccc;">&mdash;</div>')+
+        '<div style="font-size:12px; margin-top:2px;">'+hrs.toFixed(2)+'h</div>'+
+        '<div style="font-size:12px; font-weight:bold;">$'+pay.toFixed(2)+'</div>'+
+      '</div>';
     }
   });
   html += '</div>';
@@ -282,9 +313,9 @@ function render(){
   });
 }
 
-function updateDayHoursFromInput(idOrNew, dayKey, value){
+function updateDayTimeFromInput(idOrNew, dayKey, field, value){
   var w = (idOrNew==='current') ? currentWeekRef : weeks.find(function(x){return x.id===idOrNew;});
-  updateDayHours(w, dayKey, value);
+  updateDayTime(w, dayKey, field, value);
 }
 
 function markPaidCurrent(){ markPaid(currentWeekRef); }
