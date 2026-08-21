@@ -37,13 +37,14 @@
   .week-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   .week-top .wlabel { font-size: 16px; font-weight: bold; }
   .week-top .wrate { font-size: 12px; color: #9c8560; }
-  .day-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; margin: 12px 0; }
+  .day-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 12px 0; }
   .day-cell { text-align: center; }
   .day-cell label { font-size: 11px; color: #666; display: block; margin-bottom: 3px; font-weight: bold; }
   .day-cell input {
-    width: 100%; padding: 5px 2px; font-size: 12px; text-align: center; border: 1px solid #ccc;
-    border-radius: 6px; background: #f7f3ea; margin-bottom: 3px;
+    width: 100%; padding: 8px 4px; font-size: 15px; text-align: center;
+    border: 1px solid #ccc; border-radius: 6px; background: #f7f3ea; color: #0A0D14; font-family: inherit;
   }
+  .day-cell input:disabled { color: #aaa; }
   .week-totals { display: flex; justify-content: space-between; font-size: 14px; margin: 10px 0; flex-wrap: wrap; gap: 6px; }
   .week-totals b { font-size: 17px; }
   .paid-btn { width: 100%; padding: 12px; font-size: 15px; font-weight: bold; border: none; background: #1e7d32; color: #fff; border-radius: 8px; cursor: pointer; margin-top: 6px; }
@@ -113,12 +114,30 @@ var weeks = [];
 var DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
 var DAY_LABELS = {mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun'};
 
+var IDLE_LIMIT_MS = 30*60*1000;
+function checkIdleTimeout(){
+  var last=parseInt(localStorage.getItem('millscat_last_active')||'0',10);
+  if(last && (Date.now()-last) > IDLE_LIMIT_MS){
+    localStorage.removeItem('millscat_account_id');
+    localStorage.removeItem('millscat_account_name');
+    localStorage.removeItem('millscat_last_active');
+    accountId=null;
+    return true;
+  }
+  return false;
+}
+function markActive(){ if(accountId) localStorage.setItem('millscat_last_active', Date.now().toString()); }
+document.addEventListener('click', markActive);
+document.addEventListener('keydown', markActive);
+
 function init(){
+  checkIdleTimeout();
   if(!accountId){
     document.getElementById('loading').style.display='none';
     document.getElementById('not-logged-in').style.display='block';
     return;
   }
+  markActive();
   loadRate().then(function(){
     return loadWeeks();
   }).then(function(){
@@ -165,28 +184,43 @@ function formatWeekLabel(mondayIso){
   return start.toLocaleDateString('en-US', opts) + ' – ' + end.toLocaleDateString('en-US', opts) + ', ' + start.getFullYear();
 }
 
+var WEEKEND_KEYS = ['sat','sun'];
+
+function normalizeDays(days){
+  var out={};
+  DAY_KEYS.forEach(function(k){
+    var d=days[k];
+    if(d && typeof d==='object'){
+      // migrate old start/end format: treat as 0 hours, they'll re-enter
+      out[k]=0;
+    }else{
+      out[k]=parseFloat(d)||0;
+    }
+  });
+  return out;
+}
+function normalizeEnabled(enabled){
+  var out={};
+  DAY_KEYS.forEach(function(k){
+    if(enabled && typeof enabled[k]==='boolean'){ out[k]=enabled[k]; }
+    else{ out[k]= WEEKEND_KEYS.indexOf(k)===-1; }
+  });
+  return out;
+}
+
 function loadWeeks(){
   return db.collection('sitter_weeks').where('accountId','==',accountId).get().then(function(snapshot){
     weeks=[];
     snapshot.forEach(function(doc){
       var d=doc.data();
-      weeks.push({id:doc.id, weekStart:d.weekStart, days:d.days, rate:d.rate, paid:d.paid, paidAt:d.paidAt||null});
+      weeks.push({id:doc.id, weekStart:d.weekStart, days:normalizeDays(d.days||{}), enabled:normalizeEnabled(d.enabled), rate:d.rate, paid:d.paid, paidAt:d.paidAt||null});
     });
   });
 }
 
-function calcDayHours(day){
-  if(!day || !day.start || !day.end) return 0;
-  var sp=day.start.split(':'), ep=day.end.split(':');
-  var startMin=parseInt(sp[0])*60+parseInt(sp[1]);
-  var endMin=parseInt(ep[0])*60+parseInt(ep[1]);
-  var diff=endMin-startMin;
-  if(diff<0) diff=0;
-  return diff/60;
-}
 function weekTotalHours(w){
   var total=0;
-  DAY_KEYS.forEach(function(k){ total += calcDayHours(w.days[k]); });
+  DAY_KEYS.forEach(function(k){ if(w.enabled[k]) total += (parseFloat(w.days[k])||0); });
   return total;
 }
 function weekTotalPay(w){ return weekTotalHours(w) * (w.rate||currentRate); }
@@ -195,15 +229,12 @@ function getOrCreateCurrentWeek(){
   var mondayIso = isoDate(getMonday(new Date()));
   var existing = weeks.find(function(w){ return w.weekStart===mondayIso; });
   if(existing) return existing;
-  var fresh = {id:null, weekStart:mondayIso, days:{
-    mon:{start:'15:00',end:''}, tue:{start:'15:00',end:''}, wed:{start:'15:00',end:''}, thu:{start:'15:00',end:''},
-    fri:{start:'15:00',end:''}, sat:{start:'',end:''}, sun:{start:'',end:''}
-  }, rate:currentRate, paid:false, paidAt:null};
+  var fresh = {id:null, weekStart:mondayIso, days:normalizeDays({}), enabled:normalizeEnabled(null), rate:currentRate, paid:false, paidAt:null};
   return fresh;
 }
 
 function saveWeek(w){
-  var payload = {accountId:accountId, weekStart:w.weekStart, days:w.days, rate:w.rate, paid:w.paid, paidAt:w.paidAt};
+  var payload = {accountId:accountId, weekStart:w.weekStart, days:w.days, enabled:w.enabled, rate:w.rate, paid:w.paid, paidAt:w.paidAt};
   if(w.id){
     return db.collection('sitter_weeks').doc(w.id).set(payload);
   }else{
@@ -211,9 +242,16 @@ function saveWeek(w){
   }
 }
 
-function updateDayTime(w, dayKey, field, value){
-  if(!w.days[dayKey]) w.days[dayKey]={start:'',end:''};
-  w.days[dayKey][field]=value;
+function toggleDayEnabled(idOrNew, dayKey, checked){
+  var w = (idOrNew==='current') ? currentWeekRef : weeks.find(function(x){return x.id===idOrNew;});
+  w.enabled[dayKey]=checked;
+  saveWeek(w).then(render);
+}
+
+function updateDayHours(w, dayKey, value){
+  var hrs=parseFloat(value);
+  if(isNaN(hrs)||hrs<0) hrs=0;
+  w.days[dayKey]=hrs;
   saveWeek(w).then(render);
 }
 
@@ -224,33 +262,29 @@ function markPaid(w){
   saveWeek(w).then(render);
 }
 
-function fmtTime(t){
-  if(!t) return '';
-  var p=t.split(':'); var h=parseInt(p[0]), m=p[1];
-  var ampm = h>=12 ? 'PM':'AM';
-  var h12 = h%12; if(h12===0) h12=12;
-  return h12+':'+m+' '+ampm;
-}
-
 function renderDayGrid(w, editable){
   var rate = w.rate||currentRate;
   var html = '<div class="day-grid">';
   DAY_KEYS.forEach(function(k){
-    var day = w.days[k]||{start:'',end:''};
-    var hrs = calcDayHours(day);
+    var hoursVal = parseFloat(w.days[k])||0;
+    var on = w.enabled ? w.enabled[k] : true;
+    var hrs = on ? hoursVal : 0;
     var pay = hrs*rate;
     if(editable){
-      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label>'+
-        '<input type="time" value="'+(day.start||'')+'" onchange="updateDayTimeFromInput(\''+w.id_or_new+'\',\''+k+'\',\'start\',this.value)" style="margin-bottom:4px;">'+
-        '<input type="time" value="'+(day.end||'')+'" onchange="updateDayTimeFromInput(\''+w.id_or_new+'\',\''+k+'\',\'end\',this.value)">'+
-        '<div style="font-size:11px; color:#666; margin-top:3px;">'+hrs.toFixed(2)+'h</div>'+
-        '<div style="font-size:12px; font-weight:bold; color:#1e7d32;">$'+pay.toFixed(2)+'</div>'+
+      html += '<div class="day-cell" style="'+(on?'':'opacity:0.4;')+'">'+
+        '<label style="display:flex; align-items:center; justify-content:center; gap:4px;">'+
+          '<input type="checkbox" '+(on?'checked':'')+' onchange="toggleDayEnabled(\''+w.id_or_new+'\',\''+k+'\',this.checked)" style="width:auto; margin:0;">'+
+          DAY_LABELS[k]+
+        '</label>'+
+        '<input type="number" min="0" step="0.25" value="'+hoursVal+'" '+(on?'':'disabled')+' onchange="updateDayHoursFromInput(\''+w.id_or_new+'\',\''+k+'\',this.value)">'+
+        '<div style="font-size:11px; color:#666; margin-top:3px;">hrs</div>'+
+        '<div style="font-size:12px; font-weight:bold; color:#1e7d32; margin-top:2px;">$'+pay.toFixed(2)+'</div>'+
       '</div>';
     }else{
-      html += '<div class="day-cell"><label>'+DAY_LABELS[k]+'</label>'+
-        (day.start&&day.end ? '<div style="font-size:10px; color:#888;">'+fmtTime(day.start)+'&ndash;'+fmtTime(day.end)+'</div>' : '<div style="font-size:10px; color:#ccc;">&mdash;</div>')+
-        '<div style="font-size:12px; margin-top:2px;">'+hrs.toFixed(2)+'h</div>'+
-        '<div style="font-size:12px; font-weight:bold;">$'+pay.toFixed(2)+'</div>'+
+      html += '<div class="day-cell" style="'+(on?'':'opacity:0.4;')+'"><label>'+DAY_LABELS[k]+'</label>'+
+        '<div style="font-size:15px; margin-top:2px;">'+(on?hrs:'&mdash;')+'</div>'+
+        '<div style="font-size:11px; color:#666;">hrs</div>'+
+        '<div style="font-size:12px; font-weight:bold; margin-top:2px;">$'+pay.toFixed(2)+'</div>'+
       '</div>';
     }
   });
@@ -313,9 +347,9 @@ function render(){
   });
 }
 
-function updateDayTimeFromInput(idOrNew, dayKey, field, value){
+function updateDayHoursFromInput(idOrNew, dayKey, value){
   var w = (idOrNew==='current') ? currentWeekRef : weeks.find(function(x){return x.id===idOrNew;});
-  updateDayTime(w, dayKey, field, value);
+  updateDayHours(w, dayKey, value);
 }
 
 function markPaidCurrent(){ markPaid(currentWeekRef); }
