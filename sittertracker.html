@@ -24,6 +24,11 @@
   .section-label { font-size: 13px; font-weight: bold; color: #9c8560; text-transform: uppercase; letter-spacing: 0.06em; margin: 24px 0 8px; }
   .section-label:first-child { margin-top: 0; }
 
+  #metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .metric-card { background: #14181f; border: 1px solid #3a3226; border-radius: 10px; padding: 10px 8px; text-align: center; }
+  .metric-card .m-label { font-size: 10px; color: #9c8560; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metric-card .m-hours { font-size: 15px; font-weight: bold; color: #C9A876; margin-top: 2px; }
+  .metric-card .m-pay { font-size: 12px; color: #9c8560; margin-top: 1px; }
   #rate-row { display: flex; align-items: center; justify-content: space-between; background: #14181f; border: 1px solid #3a3226; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
   #rate-row .rate-label { font-size: 13px; color: #9c8560; }
   #rate-row .rate-val { font-size: 18px; font-weight: bold; color: #C9A876; }
@@ -72,6 +77,8 @@
   </div>
 
   <div id="app-content">
+
+    <div id="metrics-row"></div>
 
     <div id="rate-row">
       <div>
@@ -162,8 +169,15 @@ function editRate(){
   currentRate = val;
   db.collection('accounts').doc(accountId).update({sitterRate: val}).then(function(){
     document.getElementById('rate-display').textContent = '$'+val.toFixed(2)+' / hr';
-    // update the current (unsaved-rate) week's displayed rate going forward
-    render();
+    // Only the current, still-open (unpaid) week adopts the new rate. Past unpaid weeks
+    // and anything already paid keep the rate that was in effect at the time.
+    var cw = getOrCreateCurrentWeek();
+    if(!cw.paid){
+      cw.rate = val;
+      saveWeek(cw).then(render);
+    }else{
+      render();
+    }
   });
 }
 
@@ -232,7 +246,6 @@ function getOrCreateCurrentWeek(){
   var fresh = {id:null, weekStart:mondayIso, days:normalizeDays({}), enabled:normalizeEnabled(null), rate:currentRate, paid:false, paidAt:null};
   return fresh;
 }
-
 function saveWeek(w){
   var payload = {accountId:accountId, weekStart:w.weekStart, days:w.days, enabled:w.enabled, rate:w.rate, paid:w.paid, paidAt:w.paidAt};
   if(w.id){
@@ -294,20 +307,58 @@ function renderDayGrid(w, editable){
 
 var currentWeekRef = null;
 
+function computeMetrics(){
+  var now = new Date();
+  var thisMonday = isoDate(getMonday(now));
+  var thisMonthPrefix = now.toISOString().slice(0,7); // "2026-08"
+  var thisYear = now.getFullYear();
+
+  var m = {week:{h:0,p:0}, month:{h:0,p:0}, year:{h:0,p:0}};
+  weeks.forEach(function(w){
+    var h = weekTotalHours(w), p = weekTotalPay(w);
+    if(w.weekStart===thisMonday){ m.week.h+=h; m.week.p+=p; }
+    if(w.weekStart.slice(0,7)===thisMonthPrefix){ m.month.h+=h; m.month.p+=p; }
+    if(parseInt(w.weekStart.slice(0,4),10)===thisYear){ m.year.h+=h; m.year.p+=p; }
+  });
+  return m;
+}
+
+function renderMetrics(){
+  var m = computeMetrics();
+  var el = document.getElementById('metrics-row');
+  function card(label, data){
+    return '<div class="metric-card"><div class="m-label">'+label+'</div>'+
+      '<div class="m-hours">'+data.h.toFixed(1)+'h</div>'+
+      '<div class="m-pay">$'+data.p.toFixed(2)+'</div></div>';
+  }
+  el.innerHTML = card('This week', m.week) + card('This month', m.month) + card('This year', m.year);
+}
+
 function render(){
   currentWeekRef = getOrCreateCurrentWeek();
   currentWeekRef.id_or_new = currentWeekRef.id || 'current';
+  renderMetrics();
 
-  var hours = weekTotalHours(currentWeekRef);
-  var pay = weekTotalPay(currentWeekRef);
   var cwWrap = document.getElementById('current-week-wrap');
-  cwWrap.innerHTML =
-    '<div class="week-card current">'+
-      '<div class="week-top"><span class="wlabel">'+formatWeekLabel(currentWeekRef.weekStart)+'</span><span class="wrate">$'+(currentWeekRef.rate||currentRate).toFixed(2)+'/hr</span></div>'+
-      renderDayGrid(currentWeekRef, true)+
-      '<div class="week-totals"><span>Hours: <b>'+hours.toFixed(2)+'</b></span><span>Owed: <b>$'+pay.toFixed(2)+'</b></span></div>'+
-      '<button class="paid-btn" onclick="markPaidCurrent()">Mark as Paid</button>'+
-    '</div>';
+  if(currentWeekRef.paid){
+    var h=weekTotalHours(currentWeekRef), p=weekTotalPay(currentWeekRef);
+    cwWrap.innerHTML =
+      '<div class="week-card current">'+
+        '<div class="week-top"><span class="wlabel">'+formatWeekLabel(currentWeekRef.weekStart)+'</span><span class="wrate">$'+currentWeekRef.rate.toFixed(2)+'/hr</span></div>'+
+        '<p style="color:#1e7d32; font-weight:bold; margin:10px 0;">✓ Already paid for this week (Hours: '+h.toFixed(2)+', $'+p.toFixed(2)+')</p>'+
+        '<p style="font-size:12px; color:#888;">Find it in the Paid section below.</p>'+
+      '</div>';
+  }else{
+    var hours = weekTotalHours(currentWeekRef);
+    var pay = weekTotalPay(currentWeekRef);
+    cwWrap.innerHTML =
+      '<div class="week-card current">'+
+        '<div class="week-top"><span class="wlabel">'+formatWeekLabel(currentWeekRef.weekStart)+'</span><span class="wrate">$'+(currentWeekRef.rate||currentRate).toFixed(2)+'/hr</span></div>'+
+        renderDayGrid(currentWeekRef, true)+
+        '<div class="week-totals"><span>Hours: <b>'+hours.toFixed(2)+'</b></span><span>Owed: <b>$'+pay.toFixed(2)+'</b></span></div>'+
+        '<button class="paid-btn" onclick="markPaidCurrent()">Mark as Paid</button>'+
+      '</div>';
+  }
 
   var unpaidWeeks = weeks.filter(function(w){ return w.paid===false && w.weekStart!==currentWeekRef.weekStart; })
                           .sort(function(a,b){ return b.weekStart.localeCompare(a.weekStart); });
@@ -328,26 +379,65 @@ function render(){
     unpaidWrap.appendChild(card);
   });
 
-  var paidWeeks = weeks.filter(function(w){ return w.paid===true; })
+  var threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth()-3);
+  var cutoffIso = isoDate(threeMonthsAgo);
+
+  var paidWeeks = weeks.filter(function(w){ return w.paid===true && w.weekStart>=cutoffIso; })
                         .sort(function(a,b){ return b.weekStart.localeCompare(a.weekStart); });
   var paidWrap = document.getElementById('paid-wrap');
   paidWrap.innerHTML='';
   document.getElementById('empty-paid').style.display = paidWeeks.length? 'none':'block';
+
+  var groups = {}; // "2026-08" -> [weeks]
   paidWeeks.forEach(function(w){
-    var h=weekTotalHours(w), p=weekTotalPay(w);
-    var card=document.createElement('div');
-    card.className='week-card';
-    var paidDateStr = w.paidAt ? new Date(w.paidAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
-    card.innerHTML =
-      '<div class="week-top"><span class="wlabel">'+formatWeekLabel(w.weekStart)+'</span><span class="wrate">$'+w.rate.toFixed(2)+'/hr</span></div>'+
-      renderDayGrid(w, false)+
-      '<div class="week-totals"><span>Hours: <b>'+h.toFixed(2)+'</b></span><span>Paid: <b>$'+p.toFixed(2)+'</b></span></div>'+
-      '<div style="display:flex; justify-content:space-between; align-items:center;">'+
-        '<div><span class="paid-badge">Paid</span><div class="paid-date">'+paidDateStr+'</div></div>'+
-        '<span class="del-week" style="color:#c92a2a; font-size:12px; cursor:pointer; text-decoration:underline;">Delete</span>'+
-      '</div>';
-    card.querySelector('.del-week').onclick=function(){ deleteWeek(w); };
-    paidWrap.appendChild(card);
+    var key = w.weekStart.slice(0,7);
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(w);
+  });
+  var monthKeys = Object.keys(groups).sort().reverse();
+
+  monthKeys.forEach(function(mk){
+    var monthDate = new Date(mk+'-01T00:00:00');
+    var monthLabel = monthDate.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+    var monthHeader = document.createElement('div');
+    monthHeader.style.cssText='font-size:13px; font-weight:bold; color:#9c8560; margin:14px 0 6px;';
+    monthHeader.textContent = monthLabel;
+    paidWrap.appendChild(monthHeader);
+
+    groups[mk].forEach(function(w){
+      var h=weekTotalHours(w), p=weekTotalPay(w);
+      var card=document.createElement('div');
+      card.className='week-card';
+      card.style.cursor='pointer';
+      var paidDateStr = w.paidAt ? new Date(w.paidAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+
+      var summaryRow = document.createElement('div');
+      summaryRow.style.cssText='display:flex; justify-content:space-between; align-items:center;';
+      summaryRow.innerHTML =
+        '<span class="wlabel">'+formatWeekLabel(w.weekStart)+'</span>'+
+        '<span style="font-size:13px; color:#9c8560;">'+h.toFixed(2)+'h &middot; $'+p.toFixed(2)+' <span style="margin-left:4px;">&#9662;</span></span>';
+
+      var details = document.createElement('div');
+      details.style.display='none';
+      details.innerHTML =
+        renderDayGrid(w, false)+
+        '<div class="week-totals"><span>Hours: <b>'+h.toFixed(2)+'</b></span><span>Paid: <b>$'+p.toFixed(2)+'</b></span></div>'+
+        '<div style="display:flex; justify-content:space-between; align-items:center;">'+
+          '<div><span class="paid-badge">Paid</span><div class="paid-date">'+paidDateStr+'</div></div>'+
+          '<span class="del-week" style="color:#c92a2a; font-size:12px; cursor:pointer; text-decoration:underline;">Delete</span>'+
+        '</div>';
+
+      summaryRow.onclick=function(){ details.style.display = details.style.display==='none' ? 'block':'none'; };
+
+      card.appendChild(summaryRow);
+      card.appendChild(details);
+      paidWrap.appendChild(card);
+
+      // bind delete after appended so the element exists in the DOM
+      var delEl = details.querySelector('.del-week');
+      delEl.onclick=function(e){ e.stopPropagation(); deleteWeek(w); };
+    });
   });
 }
 
