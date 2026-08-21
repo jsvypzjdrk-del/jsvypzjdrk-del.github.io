@@ -37,11 +37,11 @@
   .week-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   .week-top .wlabel { font-size: 16px; font-weight: bold; }
   .week-top .wrate { font-size: 12px; color: #9c8560; }
-  .day-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 12px 0; }
+  .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 12px 0; }
   .day-cell { text-align: center; }
-  .day-cell label { font-size: 11px; color: #666; display: block; margin-bottom: 3px; font-weight: bold; }
+  .day-cell label { font-size: 10px; color: #666; display: block; margin-bottom: 3px; font-weight: bold; }
   .day-cell input {
-    width: 100%; padding: 8px 4px; font-size: 15px; text-align: center;
+    width: 100%; padding: 6px 2px; font-size: 13px; text-align: center;
     border: 1px solid #ccc; border-radius: 6px; background: #f7f3ea; color: #0A0D14; font-family: inherit;
   }
   .day-cell input:disabled { color: #aaa; }
@@ -342,8 +342,20 @@ function render(){
       '<div class="week-top"><span class="wlabel">'+formatWeekLabel(w.weekStart)+'</span><span class="wrate">$'+w.rate.toFixed(2)+'/hr</span></div>'+
       renderDayGrid(w, false)+
       '<div class="week-totals"><span>Hours: <b>'+h.toFixed(2)+'</b></span><span>Paid: <b>$'+p.toFixed(2)+'</b></span></div>'+
-      '<span class="paid-badge">Paid</span><div class="paid-date">'+paidDateStr+'</div>';
+      '<div style="display:flex; justify-content:space-between; align-items:center;">'+
+        '<div><span class="paid-badge">Paid</span><div class="paid-date">'+paidDateStr+'</div></div>'+
+        '<span class="del-week" style="color:#c92a2a; font-size:12px; cursor:pointer; text-decoration:underline;">Delete</span>'+
+      '</div>';
+    card.querySelector('.del-week').onclick=function(){ deleteWeek(w); };
     paidWrap.appendChild(card);
+  });
+}
+
+function deleteWeek(w){
+  if(!confirm('Delete this archived week ('+formatWeekLabel(w.weekStart)+')? This cannot be undone.')) return;
+  db.collection('sitter_weeks').doc(w.id).delete().then(function(){
+    weeks = weeks.filter(function(x){ return x.id!==w.id; });
+    render();
   });
 }
 
