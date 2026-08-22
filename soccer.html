@@ -96,8 +96,22 @@ var accountId = 'soccer_usa';
 
 /* Team PIN gate — the PIN never travels or rests in plain text.
    The SHA-256 of the correct PIN is the only value stored here or in Firestore. */
-var DEFAULT_PIN_HASH = "38813d9a6e5332787f13dac070d265339c4c711beea8b21f82966684bda30e79"; // SHA-256 of the PIN you chose
+var DEFAULT_PIN_HASH = "38813d9a6e5332787f13dac070d265339c4c711beea8b21f82966684bda30e79"; // SHA-256 of the PIN — quick check only
 var TEAM_PIN_HASH = DEFAULT_PIN_HASH;
+var ROOM_SALT = "millscat-soccer-2026-4f1c8a";
+var ROOM = null; // Firestore path segment derived from the PIN; without the PIN there is no path to read.
+
+/* PBKDF2 stretch: turns the PIN into the room key slowly, so guessing every
+   4-digit PIN costs real CPU time instead of microseconds. */
+function deriveRoom(pin){
+  var enc=new TextEncoder();
+  return crypto.subtle.importKey('raw',enc.encode(pin),{name:'PBKDF2'},false,['deriveBits'])
+    .then(function(key){
+      return crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(ROOM_SALT),iterations:600000,hash:'SHA-256'},key,256);
+    }).then(function(bits){
+      return Array.from(new Uint8Array(bits)).map(function(b){return b.toString(16).padStart(2,'0');}).join('').slice(0,32);
+    });
+}
 function sha256(text){
   var buf=new TextEncoder().encode(text);
   return crypto.subtle.digest('SHA-256',buf).then(function(h){
@@ -112,10 +126,13 @@ function idleExpired(){
 }
 function pinUnlocked(){
   if(sessionStorage.getItem('soccer_pin_ok')!=='1') return false;
+  if(!ROOM) ROOM = sessionStorage.getItem('soccer_room');
   if(idleExpired()){ signOut(true); return false; }
   return true;
 }
 function signOut(silent){
+  ROOM=null;
+  sessionStorage.removeItem('soccer_room');
   sessionStorage.removeItem('soccer_pin_ok');
   sessionStorage.removeItem('soccer_last_active');
   if(!silent){ render(); }
@@ -285,8 +302,9 @@ function cardHTML(p, side){
 
 /* ---------- data ---------- */
 function loadAll(){
-  var a=db.collection('soccer_players').where('accountId','==',accountId).get();
-  var b=db.collection('soccer_team').doc(accountId).get();
+  var room=db.collection('soccer_rooms').doc(ROOM);
+  var a=room.collection('players').get();
+  var b=room.get();
   return Promise.all([a,b]).then(function(res){
     S.players=[];
     res[0].forEach(function(doc){ var d=doc.data(); d.id=doc.id; S.players.push(d); });
@@ -297,14 +315,15 @@ function loadAll(){
 }
 function saveTeam(){
   var t={accountId:accountId,teamName:S.team.teamName,season:S.team.season,coach:S.team.coach,assistant:S.team.assistant,photo:S.team.photo||''};
-  return db.collection('soccer_team').doc(accountId).set(t);
+  return db.collection('soccer_rooms').doc(ROOM).set(t);
 }
 function savePlayer(p){
   var d={accountId:accountId,name:p.name||'',no:p.no||'',position:p.position||'',fact:p.fact||'',design:p.design||'shield',photo:p.photo||'',filled:!!p.filled,order:p.order||0};
-  if(p.id) return db.collection('soccer_players').doc(p.id).set(d);
-  return db.collection('soccer_players').add(d).then(function(ref){ p.id=ref.id; });
+  var col=db.collection('soccer_rooms').doc(ROOM).collection('players');
+  if(p.id) return col.doc(p.id).set(d);
+  return col.add(d).then(function(ref){ p.id=ref.id; });
 }
-function deletePlayer(p){ return p.id ? db.collection('soccer_players').doc(p.id).delete() : Promise.resolve(); }
+function deletePlayer(p){ return p.id ? db.collection('soccer_rooms').doc(ROOM).collection('players').doc(p.id).delete() : Promise.resolve(); }
 
 /* photo: resize + compress to keep the doc under Firestore's 1MB limit */
 function readPhoto(file, cb){
@@ -361,7 +380,13 @@ function submitPin(mode){
       TEAM_PIN_HASH=h;
       saveTeam().then(function(){ sessionStorage.setItem('soccer_pin_ok','1'); render(); });
     } else if(h===TEAM_PIN_HASH){
-      sessionStorage.setItem('soccer_pin_ok','1'); markActive(); init();
+      err.textContent='Unlocking…';
+      return deriveRoom(v).then(function(room){
+        ROOM=room;
+        sessionStorage.setItem('soccer_room',room);
+        sessionStorage.setItem('soccer_pin_ok','1');
+        markActive(); init();
+      });
     } else {
       err.textContent='Wrong PIN.';
       document.getElementById('pin').value='';
@@ -575,7 +600,7 @@ function init(){
     if(/CONFIGURATION_NOT_FOUND|operation-not-allowed/i.test(msg))
       help='Turn on <b>Anonymous</b> sign-in: Firebase Console &rarr; Authentication &rarr; Sign-in method &rarr; Anonymous &rarr; Enable.';
     else if(/permission/i.test(msg))
-      help='Publish the Firestore rules for <b>soccer_players</b> and <b>soccer_team</b>.';
+      help='Publish the Firestore rules for <b>soccer_rooms</b>.';
     document.getElementById('app').innerHTML='<div class="gate"><h1>Couldn\'t load</h1>'+
       (help?'<div class="tip" style="text-align:left;margin-top:14px">'+help+'</div>':'')+
       '<div class="meta" style="margin-top:12px">'+esc(msg)+'</div></div>';
