@@ -89,22 +89,10 @@ function signIn(){
   return firebase.auth().signInAnonymously().then(function(res){ return res.user; });
 }
 
-var accountId = localStorage.getItem('millscat_account_id');
-var IDLE_LIMIT_MS = 30*60*1000;
-function checkIdleTimeout(){
-  var last=parseInt(localStorage.getItem('millscat_last_active')||'0',10);
-  if(last && (Date.now()-last) > IDLE_LIMIT_MS){
-    localStorage.removeItem('millscat_account_id');
-    localStorage.removeItem('millscat_account_name');
-    localStorage.removeItem('millscat_last_active');
-    accountId=null;
-    return true;
-  }
-  return false;
-}
-function markActive(){ if(accountId) localStorage.setItem('millscat_last_active', Date.now().toString()); }
-document.addEventListener('click', markActive);
-document.addEventListener('keydown', markActive);
+/* This app stands on its own — the team PIN is its login.
+   All docs share one fixed team key instead of a Millscat account id. */
+var accountId = 'soccer_usa';
+
 
 /* Team PIN gate — the PIN never travels or rests in plain text.
    The SHA-256 of the correct PIN is the only value stored here or in Firestore. */
@@ -366,14 +354,9 @@ function submitPin(mode){
 }
 
 function render(){
-  document.getElementById('tabs').innerHTML = (accountId && pinUnlocked()) ? tabs() : '';
+  document.getElementById('tabs').innerHTML = pinUnlocked() ? tabs() : '';
   document.getElementById('navsub').textContent = (S.team.teamName||'USA')+' · '+(S.team.season||'');
   var el=document.getElementById('app');
-  if(!accountId){
-    el.innerHTML='<div class="gate"><h1>Log in first</h1><div class="meta">This is a Millscat app — log in on the home page and come back.</div>'+
-      '<div style="margin-top:20px"><a class="btn" href="index.html" style="text-decoration:none;display:inline-block">Go to Millscat</a></div></div>';
-    return;
-  }
   if(!pinUnlocked()) return renderPinGate(el,'enter');
   if(S.screen==='roster') return renderRoster(el);
   if(S.screen==='edit') return renderEdit(el);
@@ -570,9 +553,6 @@ function flipCard(){ S.flipped=!S.flipped; render(); }
 
 /* ---------- boot ---------- */
 function init(){
-  checkIdleTimeout();
-  if(!accountId){ render(); return; }
-  markActive();
   if(!pinUnlocked()){ document.getElementById('tabs').innerHTML=''; renderPinGate(document.getElementById('app'),'enter'); return; }
   signIn().then(loadAll).then(render).catch(function(e){
     var msg=String((e&&e.message)||e), help='';
