@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Soccer Cards</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
@@ -81,6 +82,13 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 
+/* Anonymous auth: every read/write below is gated on a signed-in session,
+   so the Firestore rules can refuse anyone who isn't coming through this app. */
+function signIn(){
+  if(firebase.auth().currentUser) return Promise.resolve(firebase.auth().currentUser);
+  return firebase.auth().signInAnonymously().then(function(res){ return res.user; });
+}
+
 var accountId = localStorage.getItem('millscat_account_id');
 var IDLE_LIMIT_MS = 30*60*1000;
 function checkIdleTimeout(){
@@ -97,6 +105,20 @@ function checkIdleTimeout(){
 function markActive(){ if(accountId) localStorage.setItem('millscat_last_active', Date.now().toString()); }
 document.addEventListener('click', markActive);
 document.addEventListener('keydown', markActive);
+
+/* Team PIN gate — the PIN never travels or rests in plain text.
+   The SHA-256 of the correct PIN is the only value stored here or in Firestore. */
+var DEFAULT_PIN_HASH = "38813d9a6e5332787f13dac070d265339c4c711beea8b21f82966684bda30e79"; // SHA-256 of the PIN you chose
+var TEAM_PIN_HASH = DEFAULT_PIN_HASH;
+function sha256(text){
+  var buf=new TextEncoder().encode(text);
+  return crypto.subtle.digest('SHA-256',buf).then(function(h){
+    return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  });
+}
+function pinUnlocked(){
+  return sessionStorage.getItem('soccer_pin_ok')==='1';
+}
 
 var S = {
   screen:'roster', editing:null, packIndex:0, flipped:false, setupText:'',
@@ -266,6 +288,7 @@ function loadAll(){
     res[0].forEach(function(doc){ var d=doc.data(); d.id=doc.id; S.players.push(d); });
     S.players.sort(function(x,y){ return (x.order||0)-(y.order||0); });
     if(res[1].exists){ var t=res[1].data(); for(var k in t) S.team[k]=t[k]; }
+    TEAM_PIN_HASH = DEFAULT_PIN_HASH;
   });
 }
 function saveTeam(){
@@ -310,8 +333,40 @@ function tabs(){
   }).join('');
 }
 
+function renderPinGate(el, mode){
+  el.innerHTML='<div class="gate">'+
+    '<h1>'+(mode==='set'?'Set the team PIN':'Team PIN')+'</h1>'+
+    '<div class="meta">'+(mode==='set'
+      ? 'Pick a 4-digit PIN and share it with the parents. Only the scrambled version is stored — not the PIN itself.'
+      : 'Enter the 4-digit PIN the coach gave you.')+'</div>'+
+    '<input class="inp" id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="----" '+
+      'style="width:160px;margin:18px auto 0;text-align:center;letter-spacing:10px;font-size:20px" '+
+      'onkeydown="if(event.key===\'Enter\')submitPin(\''+mode+'\')">'+
+    '<div id="pin-err" style="color:#b23b3b;font-size:13px;min-height:20px;margin-top:8px"></div>'+
+    '<button class="btn" onclick="submitPin(\''+mode+'\')">'+(mode==='set'?'Set PIN':'Unlock')+'</button>'+
+    '</div>';
+  var i=document.getElementById('pin'); if(i) i.focus();
+}
+
+function submitPin(mode){
+  var v=(document.getElementById('pin').value||'').trim();
+  var err=document.getElementById('pin-err');
+  if(!/^\d{4}$/.test(v)){ err.textContent='Enter 4 digits.'; return; }
+  sha256(v).then(function(h){
+    if(mode==='set'){
+      TEAM_PIN_HASH=h;
+      saveTeam().then(function(){ sessionStorage.setItem('soccer_pin_ok','1'); render(); });
+    } else if(h===TEAM_PIN_HASH){
+      sessionStorage.setItem('soccer_pin_ok','1'); init();
+    } else {
+      err.textContent='Wrong PIN.';
+      document.getElementById('pin').value='';
+    }
+  });
+}
+
 function render(){
-  document.getElementById('tabs').innerHTML = accountId ? tabs() : '';
+  document.getElementById('tabs').innerHTML = (accountId && pinUnlocked()) ? tabs() : '';
   document.getElementById('navsub').textContent = (S.team.teamName||'USA')+' · '+(S.team.season||'');
   var el=document.getElementById('app');
   if(!accountId){
@@ -319,6 +374,7 @@ function render(){
       '<div style="margin-top:20px"><a class="btn" href="index.html" style="text-decoration:none;display:inline-block">Go to Millscat</a></div></div>';
     return;
   }
+  if(!pinUnlocked()) return renderPinGate(el,'enter');
   if(S.screen==='roster') return renderRoster(el);
   if(S.screen==='edit') return renderEdit(el);
   if(S.screen==='setup') return renderSetup(el);
@@ -466,7 +522,8 @@ function renderCoaches(el){
       '<div class="field" style="flex:1"><div class="lab">Coach</div><input class="inp" id="c-coach" value="'+esc(S.team.coach||'')+'"></div>'+
       '<div class="field" style="flex:1"><div class="lab">Assistant coach</div><input class="inp" id="c-asst" value="'+esc(S.team.assistant||'')+'"></div></div>'+
     '<div style="display:flex;gap:10px;margin-top:18px"><button class="btn" onclick="saveCoaches()">Save</button>'+
-      '<button class="btn ghost" onclick="go(\'roster\')">Cancel</button></div></div></div>';
+      '<button class="btn ghost" onclick="go(\'roster\')">Cancel</button></div>'+
+    '</div></div>';
 }
 function saveCoaches(){
   S.team.teamName=document.getElementById('c-team').value.trim()||'USA';
@@ -516,8 +573,16 @@ function init(){
   checkIdleTimeout();
   if(!accountId){ render(); return; }
   markActive();
-  loadAll().then(render).catch(function(e){
-    document.getElementById('app').innerHTML='<div class="gate"><h1>Couldn\'t load</h1><div class="meta">'+esc(e.message||e)+'</div></div>';
+  if(!pinUnlocked()){ document.getElementById('tabs').innerHTML=''; renderPinGate(document.getElementById('app'),'enter'); return; }
+  signIn().then(loadAll).then(render).catch(function(e){
+    var msg=String((e&&e.message)||e), help='';
+    if(/CONFIGURATION_NOT_FOUND|operation-not-allowed/i.test(msg))
+      help='Turn on <b>Anonymous</b> sign-in: Firebase Console &rarr; Authentication &rarr; Sign-in method &rarr; Anonymous &rarr; Enable.';
+    else if(/permission/i.test(msg))
+      help='Publish the Firestore rules for <b>soccer_players</b> and <b>soccer_team</b>.';
+    document.getElementById('app').innerHTML='<div class="gate"><h1>Couldn\'t load</h1>'+
+      (help?'<div class="tip" style="text-align:left;margin-top:14px">'+help+'</div>':'')+
+      '<div class="meta" style="margin-top:12px">'+esc(msg)+'</div></div>';
   });
 }
 init();
