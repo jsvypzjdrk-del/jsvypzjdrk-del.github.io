@@ -96,7 +96,7 @@ var accountId = 'soccer_usa';
 
 /* Team PIN gate — the PIN never travels or rests in plain text.
    The SHA-256 of the correct PIN is the only value stored here or in Firestore. */
-var DEFAULT_PIN_HASH = "38813d9a6e5332787f13dac070d265339c4c711beea8b21f82966684bda30e79"; // SHA-256 of the PIN — quick check only
+var DEFAULT_PIN_HASH = "873c2de07b03d9de66fd439829322e10f812a8c2be98dcc6684dd20d6b9ab5fe"; // SHA-256 of the team password — quick check only
 var TEAM_PIN_HASH = DEFAULT_PIN_HASH;
 var ROOM_SALT = "millscat-soccer-2026-4f1c8a";
 var ROOM = null; // Firestore path segment derived from the PIN; without the PIN there is no path to read.
@@ -358,12 +358,12 @@ function tabs(){
 
 function renderPinGate(el, mode){
   el.innerHTML='<div class="gate">'+
-    '<h1>'+(mode==='set'?'Set the team PIN':'Team PIN')+'</h1>'+
+    '<h1>'+(mode==='set'?'Set the team password':'Team password')+'</h1>'+
     '<div class="meta">'+(mode==='set'
       ? 'Pick a 4-digit PIN and share it with the parents. Only the scrambled version is stored — not the PIN itself.'
-      : 'Enter the 4-digit PIN the coach gave you. The page locks itself again after 10 minutes idle.')+'</div>'+
-    '<input class="inp" id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="----" '+
-      'style="width:160px;margin:18px auto 0;text-align:center;letter-spacing:10px;font-size:20px" '+
+      : 'Enter the team password the coach gave you. The page locks itself again after 10 minutes idle.')+'</div>'+
+    '<input class="inp" id="pin" type="password" autocomplete="off" placeholder="team password" '+
+      'style="width:260px;margin:18px auto 0;text-align:center;font-size:17px" '+
       'onkeydown="if(event.key===\'Enter\')submitPin(\''+mode+'\')">'+
     '<div id="pin-err" style="color:#b23b3b;font-size:13px;min-height:20px;margin-top:8px"></div>'+
     '<button class="btn" onclick="submitPin(\''+mode+'\')">'+(mode==='set'?'Set PIN':'Unlock')+'</button>'+
@@ -374,7 +374,7 @@ function renderPinGate(el, mode){
 function submitPin(mode){
   var v=(document.getElementById('pin').value||'').trim();
   var err=document.getElementById('pin-err');
-  if(!/^\d{4}$/.test(v)){ err.textContent='Enter 4 digits.'; return; }
+  if(!v){ err.textContent='Enter the password.'; return; }
   sha256(v).then(function(h){
     if(mode==='set'){
       TEAM_PIN_HASH=h;
@@ -388,7 +388,7 @@ function submitPin(mode){
         markActive(); init();
       });
     } else {
-      err.textContent='Wrong PIN.';
+      err.textContent='Wrong password.';
       document.getElementById('pin').value='';
     }
   });
