@@ -104,9 +104,25 @@ function sha256(text){
     return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
   });
 }
-function pinUnlocked(){
-  return sessionStorage.getItem('soccer_pin_ok')==='1';
+var IDLE_LIMIT_MS = 10*60*1000;
+function markActive(){ if(pinUnlocked()) sessionStorage.setItem('soccer_last_active', Date.now().toString()); }
+function idleExpired(){
+  var last=parseInt(sessionStorage.getItem('soccer_last_active')||'0',10);
+  return !!last && (Date.now()-last) > IDLE_LIMIT_MS;
 }
+function pinUnlocked(){
+  if(sessionStorage.getItem('soccer_pin_ok')!=='1') return false;
+  if(idleExpired()){ signOut(true); return false; }
+  return true;
+}
+function signOut(silent){
+  sessionStorage.removeItem('soccer_pin_ok');
+  sessionStorage.removeItem('soccer_last_active');
+  if(!silent){ render(); }
+}
+document.addEventListener('click', markActive);
+document.addEventListener('keydown', markActive);
+setInterval(function(){ if(sessionStorage.getItem('soccer_pin_ok')==='1' && idleExpired()){ signOut(true); render(); } }, 20000);
 
 var S = {
   screen:'roster', editing:null, packIndex:0, flipped:false, setupText:'',
@@ -318,7 +334,7 @@ function tabs(){
   var t=[['roster','Roster'],['pack','Pack'],['setup','Add players'],['coaches','Coaches']];
   return t.map(function(x){
     return '<button class="tab'+(S.screen===x[0]||(x[0]==='roster'&&S.screen==='edit')?' on':'')+'" onclick="go(\''+x[0]+'\')">'+x[1]+'</button>';
-  }).join('');
+  }).join('')+'<button class="tab" style="color:#7fc3e8" onclick="signOut()">Sign out</button>';
 }
 
 function renderPinGate(el, mode){
@@ -326,7 +342,7 @@ function renderPinGate(el, mode){
     '<h1>'+(mode==='set'?'Set the team PIN':'Team PIN')+'</h1>'+
     '<div class="meta">'+(mode==='set'
       ? 'Pick a 4-digit PIN and share it with the parents. Only the scrambled version is stored — not the PIN itself.'
-      : 'Enter the 4-digit PIN the coach gave you.')+'</div>'+
+      : 'Enter the 4-digit PIN the coach gave you. The page locks itself again after 10 minutes idle.')+'</div>'+
     '<input class="inp" id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="----" '+
       'style="width:160px;margin:18px auto 0;text-align:center;letter-spacing:10px;font-size:20px" '+
       'onkeydown="if(event.key===\'Enter\')submitPin(\''+mode+'\')">'+
@@ -345,7 +361,7 @@ function submitPin(mode){
       TEAM_PIN_HASH=h;
       saveTeam().then(function(){ sessionStorage.setItem('soccer_pin_ok','1'); render(); });
     } else if(h===TEAM_PIN_HASH){
-      sessionStorage.setItem('soccer_pin_ok','1'); init();
+      sessionStorage.setItem('soccer_pin_ok','1'); markActive(); init();
     } else {
       err.textContent='Wrong PIN.';
       document.getElementById('pin').value='';
